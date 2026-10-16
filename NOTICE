@@ -6,9 +6,11 @@ This product is a modified version of qseow-mcp
 licensed under the Apache License, Version 2.0. It has been substantially
 modified by H-Bee.
 
-SenseKit-MCP is an independent project, not affiliated with, endorsed by,
-or sponsored by QlikTech International AB or Terenzi LLC. Qlik, Qlik Sense,
-and related marks are trademarks of QlikTech International AB.
+SenseKit-MCP is only a modification of qseow-mcp and is not sponsored by
+anyone. Terenzi LLC, the author of qseow-mcp, does not maintain or endorse
+this modified version. SenseKit-MCP is not affiliated with, endorsed by,
+or sponsored by QlikTech International AB. Qlik, Qlik Sense, and related
+marks are trademarks of QlikTech International AB.
 
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.

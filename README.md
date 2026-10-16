@@ -4,7 +4,7 @@ An MCP server for **Qlik Sense Enterprise on Windows** (client-managed, QSEoW).
 
 It exposes the site's Repository (QRS), Engine (QIX) and Proxy APIs as [Model Context Protocol](https://modelcontextprotocol.io) tools. An AI agent can then query app data, trace where a number comes from, inspect reloads and security rules, and build sheets and charts whose rendering the server checks as far as it can.
 
-SenseKit-MCP is an independent project, based on [qseow-mcp](https://github.com/rmterenzi/qseow-mcp) (see [Credits](#credits)). It is not affiliated with, endorsed by, or sponsored by QlikTech International AB or Terenzi LLC.
+SenseKit-MCP is a modification of [qseow-mcp](https://github.com/rmterenzi/qseow-mcp) by Terenzi LLC (see [Credits](#credits)) and is not sponsored by anyone. Terenzi LLC does not maintain or endorse this modified version, and it is not affiliated with, endorsed by, or sponsored by QlikTech International AB.
 
 ## Highlights
 

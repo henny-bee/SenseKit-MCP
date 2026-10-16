@@ -1,10 +1,10 @@
-import { HEX_COLOR, SORT_CRITERIA, type DimSpec, type DimSort, type MeasureSpec } from "./inputs.js";
+import { HEX_COLOR, SORT_CRITERIA, SERIES_TYPES, type DimSpec, type DimSort, type MeasureSpec, type SeriesType } from "./inputs.js";
 import { numberFormatFromEngine } from "./number-format.js";
 import { ToolError } from "../core/errors.js";
 import type { GenericObjectProperties, HyperCubeDef, NxInlineDimensionDef, NxMeasure, NxSortCriteria } from "../qix/types.js";
 
 /** A hypercube dimension or a qListObjectDef — both carry qDef + qLibraryId. */
-type DimEntry = { qDef?: NxInlineDimensionDef; qLibraryId?: string };
+type DimEntry = { qDef?: NxInlineDimensionDef; qLibraryId?: string; qNullSuppression?: boolean };
 
 // ── Reading specs back out of an existing object (update_sheet_object) ──────
 
@@ -29,7 +29,19 @@ export function dimSpecFromDef(entry: DimEntry | undefined, where = "dimension")
     const sort = (Object.keys(SORT_CRITERIA) as DimSort[]).find((k) => sameCriteria(crit, SORT_CRITERIA[k]));
     if (sort) out.sort = sort;
   }
+  if (entry?.qNullSuppression === true) out.includeNulls = false;
   return out;
+}
+
+/** Every dimension of a hypercube. In a pivot (qMode "P") the dimensions
+ *  after the first qNoOfLeftDims are its columns. */
+export function cubeDimSpecs(hc: Partial<HyperCubeDef>): DimSpec[] {
+  const dims = (hc.qDimensions ?? []).map((d, i) => dimSpecFromDef(d, `dimension ${i}`));
+  const left = hc.qNoOfLeftDims;
+  if (hc.qMode === "P" && typeof left === "number" && left >= 1) {
+    for (let i = left; i < dims.length; i++) dims[i].pivotColumn = true;
+  }
+  return dims;
 }
 
 /** A hypercube measure -> MeasureSpec (expression or link, label, format, color). */
@@ -46,8 +58,15 @@ export function measureSpecFromDef(entry: Partial<NxMeasure> | undefined, where 
   }
   const nf = numberFormatFromEngine(entry?.qDef);
   if (nf) out.numberFormat = nf;
-  const color = entry?.qDef?.coloring?.baseColor?.color;
+  // bar/line charts keep a measure color in qDef.coloring; the combo chart
+  // client writes qDef.color instead (harvested from a client-authored combo).
+  const comboColor = entry?.qDef?.color as { on?: boolean; paletteColor?: { color?: unknown } } | undefined;
+  const color = entry?.qDef?.coloring?.baseColor?.color ?? (comboColor?.on !== false ? comboColor?.paletteColor?.color : undefined);
   if (typeof color === "string" && HEX_COLOR.test(color)) out.color = color;
+  const series = entry?.qDef?.series as { type?: unknown; axis?: unknown } | undefined;
+  if (series && typeof series === "object" && SERIES_TYPES.includes(series.type as SeriesType)) {
+    out.series = { type: series.type as SeriesType, axis: series.axis === 1 ? "secondary" : "primary" };
+  }
   return out;
 }
 
@@ -58,7 +77,7 @@ export function specsFromProps(
   if (props.qListObjectDef) return { dimensions: [dimSpecFromDef(props.qListObjectDef, "listbox")], measures: [] };
   const hc: Partial<HyperCubeDef> = props.qHyperCubeDef ?? {};
   return {
-    dimensions: (hc.qDimensions ?? []).map((d, i) => dimSpecFromDef(d, `dimension ${i}`)),
+    dimensions: cubeDimSpecs(hc),
     measures: (hc.qMeasures ?? []).map((m, i) => measureSpecFromDef(m, `measure ${i}`)),
   };
 }

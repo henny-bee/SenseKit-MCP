@@ -29,6 +29,8 @@ export const dimensionInputSchema = z.union([
     libraryId: z.string().optional().describe("Master dimension id (list_master_dimensions)"),
     label: z.string().optional().describe("Column/axis label"),
     sort: z.enum(["asc", "desc", "loadOrder"]).optional(),
+    includeNulls: z.boolean().optional().describe("false hides the null ('-') row, like unticking 'Include null values' (charts and tables)"),
+    pivotColumn: z.boolean().optional().describe("pivot-table only: show this dimension as columns; column dimensions must come after the row dimensions"),
   }).strict().describe("Exactly one of field / expression / libraryId"),
 ]);
 
@@ -40,6 +42,10 @@ export const measureInputSchema = z.union([
     label: z.string().optional().describe("Measure label (inline measures only)"),
     numberFormat: numberFormatSchema.optional(),
     color: hexColorSchema.optional().describe("Per-measure color (bar/line/combo charts)"),
+    series: z.object({
+      type: z.enum(["bar", "line", "marker"]).optional().describe("Default bar"),
+      axis: z.enum(["primary", "secondary"]).optional().describe("Default primary"),
+    }).strict().optional().describe("combochart only: bar/line/marker and primary/secondary axis"),
   }).strict().describe("Exactly one of expression / libraryId"),
 ]);
 
@@ -51,4 +57,5 @@ export const vizOptionsSchema = z.object({
   orientation: z.enum(["vertical", "horizontal"]).optional().describe("barchart only"),
   stacked: z.boolean().optional().describe("barchart only"),
   sortByMeasure: z.enum(["asc", "desc"]).optional().describe("Sort by the first measure"),
+  includeZeros: z.boolean().optional().describe("false hides rows whose measures are all zero, like unticking 'Include zero values'"),
 }).strict();

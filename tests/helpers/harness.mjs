@@ -53,7 +53,7 @@ export async function startServer(opts = {}) {
   const server = createServer({ cfg, engine: fake.engine, qrs, ...(opts.deps ?? {}) });
   const [clientSide, serverSide] = InMemoryTransport.createLinkedPair();
   await server.connect(serverSide);
-  const client = new Client({ name: "qlik-sense-mcp-tests", version: "0.0.0" });
+  const client = new Client({ name: "sensekit-mcp-tests", version: "0.0.0" });
   await client.connect(clientSide);
 
   let toolCache;

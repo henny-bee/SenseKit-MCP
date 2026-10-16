@@ -5,7 +5,7 @@
 // Claude Desktop ships a Node runtime, so the bundle carries dist/ plus the
 // PRODUCTION dependency tree — the client does not run npm install.
 //
-//   node mcpb/build.mjs      ->  mcpb/qlik-sense-mcp-<version>.mcpb
+//   node mcpb/build.mjs      ->  mcpb/sensekit-mcp-<version>.mcpb
 import { execFileSync } from "node:child_process";
 import { mkdirSync, rmSync, cpSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";

@@ -1,6 +1,6 @@
 # Authentication
 
-qlik-sense-mcp supports three standard Qlik Sense Enterprise on Windows authentication patterns, chosen with `QSEOW_AUTH_MODE`:
+SenseKit-MCP supports three standard Qlik Sense Enterprise on Windows authentication patterns, chosen with `QSEOW_AUTH_MODE`:
 
 | | `certificate` (default) | `jwt` | `windows` |
 |---|---|---|---|
@@ -27,7 +27,7 @@ All variables are listed in [configuration.md](configuration.md).
    QSEOW_ROOT_CERT_PATH=/absolute/path/root.pem
    ```
 
-   `QSEOW_ROOT_CERT_PATH` is not specific to certificate mode: in jwt mode it is also used to verify the proxy's certificate.
+   `QSEOW_ROOT_CERT_PATH` is not specific to certificate mode: in jwt and windows mode it is also used to verify the proxy's certificate.
 
 3. Optionally choose the identity the server asserts in the `X-Qlik-User` header with `QSEOW_CERT_USER_DIRECTORY` and `QSEOW_CERT_USER_ID`.
 
@@ -37,7 +37,8 @@ Supply `root.pem` so that TLS verification can stay on. Treat the client certifi
 
 ```ini
 QSEOW_AUTH_MODE=jwt
-QSEOW_VP_PREFIX=jwt                # the virtual proxy prefix, as in https://host/jwt/
+# the virtual proxy prefix, as in https://host/jwt/
+QSEOW_VP_PREFIX=jwt
 QSEOW_JWT_PATH=/absolute/path/token.jwt
 ```
 
@@ -45,7 +46,7 @@ The token is "bring your own": your JWT virtual proxy decides which claims map t
 
 ### The certificate-only exception
 
-The Proxy Service REST API (`:4243`), which `list_user_sessions` and `end_user_sessions` use, accepts only certificate authentication. Qlik offers no JWT route to it. Those two tools are registered whenever `QSEOW_CERT_PATH` and `QSEOW_CERT_KEY_PATH` are set, in **either** mode, and are missing from `tools/list` otherwise. All other tools work the same way in both modes.
+The Proxy Service REST API (`:4243`), which `list_user_sessions` and `end_user_sessions` use, accepts only certificate authentication. Qlik offers no JWT route to it. Those two tools are registered whenever `QSEOW_CERT_PATH` and `QSEOW_CERT_KEY_PATH` are set, in **any** mode, and are missing from `tools/list` otherwise. All other tools work the same way in both modes.
 
 ### The engine WebSocket and CSWSH protection
 
@@ -106,8 +107,10 @@ For a site where people sign in to the hub with their Windows account on a login
 QSEOW_AUTH_MODE=windows
 QSEOW_HOST=sense.example.com
 QSEOW_USERNAME=DOMAIN\user
-QSEOW_PASSWORD_PATH=/absolute/path/qlik-password.txt   # or QSEOW_PASSWORD=...
-QSEOW_ROOT_CERT_PATH=/absolute/path/root.pem           # see below
+# or QSEOW_PASSWORD=<the password>
+QSEOW_PASSWORD_PATH=/absolute/path/qlik-password.txt
+# see TLS below
+QSEOW_ROOT_CERT_PATH=/absolute/path/root.pem
 ```
 
 The server does what a browser does on that page, once, and caches the result (`src/clients/proxy-session.ts`):
@@ -135,7 +138,7 @@ The user needs a license allocation, and the [published-apps restriction](#publi
 
 Read this before you use jwt mode in production.
 
-A JWT virtual proxy accepts any token signed by the private key that matches its configured certificate. That **private key is a master credential**: whoever holds it can mint a token for any identity the proxy will map, just like the signing key of any SAML or OIDC identity provider. This is how JWT single sign-on works; the server adds nothing to it. qlik-sense-mcp is only a client that presents a token. Without the private key it cannot impersonate anyone, which is also why publishing the snippet above is harmless: it only works against a proxy whose key you already hold.
+A JWT virtual proxy accepts any token signed by the private key that matches its configured certificate. That **private key is a master credential**: whoever holds it can mint a token for any identity the proxy will map, just like the signing key of any SAML or OIDC identity provider. This is how JWT single sign-on works; the server adds nothing to it. SenseKit-MCP is only a client that presents a token. Without the private key it cannot impersonate anyone, which is also why publishing the snippet above is harmless: it only works against a proxy whose key you already hold.
 
 Security therefore depends on these points, in order:
 

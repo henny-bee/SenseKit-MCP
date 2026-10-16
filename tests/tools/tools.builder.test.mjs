@@ -419,3 +419,61 @@ describe("builder: move_sheet_object and delete_sheet_object", () => {
     assert.ok(h.doc.objects.has(elsewhere.objectId));
   });
 });
+
+describe("builder: concurrent writes and save retries", () => {
+  test("parallel add_sheet_object calls on one sheet each keep their cell", async () => {
+    const h = await startServer({ groups: ["developer"] });
+    try {
+      const sheetId = await newSheet(h);
+      const results = await Promise.all(["Region", "Product", "FiscalYear", "Region"].map((d, i) =>
+        h.callApp("add_sheet_object", { sheetId, visualization: "barchart", title: `bar ${i}`, dimensions: [d], measures: ["Sum(Sales)"] })));
+      const names = cellsOf(h, sheetId).map((c) => c.name);
+      for (const r of results) assert.ok(names.includes(ok(r).objectId), "cell kept");
+      assert.deepEqual(ok(await h.callApp("validate_sheet", { sheetId })).placementFindings, []);
+    } finally {
+      await h.close();
+    }
+  });
+
+  test("a transient 'Write Failed' on save is retried and the call succeeds", async () => {
+    let saves = 0;
+    const doSave = async () => { if (++saves === 1) throw Object.assign(new Error("Write Failed"), { code: 9000 }); };
+    const h = await startServer({ groups: ["developer"], engineOptions: { docOverrides: { doSave } } });
+    try {
+      ok(await h.callApp("create_sheet", { title: "Retried" }));
+      assert.equal(saves, 2);
+    } finally {
+      await h.close();
+    }
+  });
+});
+
+describe("builder: update keeps null suppression, pivot columns and combo series", () => {
+  test("a title-only update carries them over", async () => {
+    const h = await startServer({ groups: ["developer"] });
+    try {
+      const sheetId = await newSheet(h);
+      const pivot = ok(await h.callApp("add_sheet_object", {
+        sheetId, visualization: "pivot-table",
+        dimensions: [{ field: "Region", includeNulls: false }, { field: "FiscalYear", pivotColumn: true }],
+        measures: ["Sum(Sales)"], options: { includeZeros: false },
+      }));
+      const combo = ok(await h.callApp("add_sheet_object", {
+        sheetId, visualization: "combochart", dimensions: ["Region"],
+        measures: ["Sum(Sales)", { expression: "Count(Product)", series: { type: "line", axis: "secondary" } }],
+      }));
+      ok(await h.callApp("update_sheet_object", { objectId: pivot.objectId, title: "Renamed pivot" }));
+      ok(await h.callApp("update_sheet_object", { objectId: combo.objectId, title: "Renamed combo" }));
+      const pc = h.doc.objects.get(pivot.objectId).props.qHyperCubeDef;
+      assert.equal(pc.qNoOfLeftDims, 1);
+      assert.equal(pc.qDimensions[0].qNullSuppression, true);
+      // Options are not carried over (documented): includeZeros reverts.
+      assert.notEqual(pc.qSuppressZero, true);
+      const cm = h.doc.objects.get(combo.objectId).props;
+      assert.deepEqual(cm.qHyperCubeDef.qMeasures.map((m) => m.qDef.series), [{ type: "bar", axis: 0 }, { type: "line", axis: 1 }]);
+      assert.equal(cm.measureAxes.length, 2);
+    } finally {
+      await h.close();
+    }
+  });
+});

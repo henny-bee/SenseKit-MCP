@@ -1,12 +1,12 @@
-qlik-sense-mcp
-Copyright 2026 XL
+SenseKit-MCP
+Copyright 2026 H-Bee
 
 This product is a modified version of qseow-mcp
 (https://github.com/rmterenzi/qseow-mcp), Copyright 2026 Terenzi LLC,
 licensed under the Apache License, Version 2.0. It has been substantially
-modified by XL.
+modified by H-Bee.
 
-qlik-sense-mcp is an independent project, not affiliated with, endorsed by,
+SenseKit-MCP is an independent project, not affiliated with, endorsed by,
 or sponsored by QlikTech International AB or Terenzi LLC. Qlik, Qlik Sense,
 and related marks are trademarks of QlikTech International AB.
 

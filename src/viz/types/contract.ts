@@ -40,6 +40,8 @@ export interface VizOptions {
   orientation?: "vertical" | "horizontal";
   stacked?: boolean;
   sortByMeasure?: "asc" | "desc";
+  /** false = the client's "Include zero values" unticked (qSuppressZero). */
+  includeZeros?: boolean;
 }
 
 /** Option keys a chart type can honour (`color` follows `colorMode`). */

@@ -8,7 +8,7 @@ import { installErrorBoundary } from "./tools/error-boundary.js";
 export const VERSION: string = createRequire(import.meta.url)("../package.json").version;
 
 /** The MCP server identity reported in initialize and the startup log. */
-export const SERVER_NAME = "qlik-sense-mcp";
+export const SERVER_NAME = "sensekit-mcp";
 
 export type ServerDeps = ToolDeps;
 

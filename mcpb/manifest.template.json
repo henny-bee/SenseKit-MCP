@@ -1,17 +1,17 @@
 {
   "manifest_version": "0.2",
-  "name": "qlik-sense-mcp",
-  "display_name": "Qlik Sense Enterprise on Windows (qlik-sense-mcp)",
+  "name": "sensekit-mcp",
+  "display_name": "SenseKit-MCP (Qlik Sense Enterprise on Windows)",
   "version": "0.0.0",
   "description": "Connect an AI agent to a Qlik Sense Enterprise on Windows site to inspect, troubleshoot, govern and build apps.",
   "long_description": "An MCP server for Qlik Sense Enterprise on Windows (client-managed). Exposes the Repository (QRS), Engine (QIX) and Proxy APIs as tools: data-model and expression inspection, master items, lineage and load scripts, reload forensics, engine health, security-rule audit, and a sheet and chart builder that checks each object with a render-validation gate. Read-only unless you explicitly allow write operations. Independent project; not affiliated with or endorsed by QlikTech International AB.",
   "author": {
-    "name": "XL",
-    "url": "https://github.com/OWNER"
+    "name": "H-Bee",
+    "url": "https://github.com/henny-bee"
   },
-  "homepage": "https://github.com/OWNER/qlik-sense-mcp",
-  "documentation": "https://github.com/OWNER/qlik-sense-mcp#readme",
-  "support": "https://github.com/OWNER/qlik-sense-mcp/issues",
+  "homepage": "https://github.com/henny-bee/SenseKit-MCP",
+  "documentation": "https://github.com/henny-bee/SenseKit-MCP#readme",
+  "support": "https://github.com/henny-bee/SenseKit-MCP/issues",
   "license": "Apache-2.0",
   "keywords": [
     "qlik",

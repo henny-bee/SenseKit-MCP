@@ -1,10 +1,10 @@
-# qlik-sense-mcp
+# SenseKit-MCP
 
 An MCP server for **Qlik Sense Enterprise on Windows** (client-managed, QSEoW).
 
 It exposes the site's Repository (QRS), Engine (QIX) and Proxy APIs as [Model Context Protocol](https://modelcontextprotocol.io) tools. An AI agent can then query app data, trace where a number comes from, inspect reloads and security rules, and build sheets and charts whose rendering the server checks as far as it can.
 
-qlik-sense-mcp is an independent project, based on [qseow-mcp](https://github.com/rmterenzi/qseow-mcp) (see [Credits](#credits)). It is not affiliated with, endorsed by, or sponsored by QlikTech International AB or Terenzi LLC.
+SenseKit-MCP is an independent project, based on [qseow-mcp](https://github.com/rmterenzi/qseow-mcp) (see [Credits](#credits)). It is not affiliated with, endorsed by, or sponsored by QlikTech International AB or Terenzi LLC.
 
 ## Highlights
 
@@ -20,16 +20,16 @@ qlik-sense-mcp is an independent project, based on [qseow-mcp](https://github.co
 
 You need Node.js 20 or later and access to a QSEoW site. The simplest start is certificate mode: in the QMC, go to **Certificates → Export** and choose PEM. That gives you `client.pem`, `client_key.pem` and `root.pem`. If you cannot get certificates, use windows mode with your own account (`QSEOW_AUTH_MODE=windows`, `QSEOW_USERNAME=DOMAIN\user`, `QSEOW_PASSWORD_PATH`). For JWT or windows mode, see [docs/authentication.md](docs/authentication.md).
 
-The commands below assume the package is published to npm as `qlik-sense-mcp`. Until it is, use [Run from source](#development).
+The commands below assume the package is published to npm as `sensekit-mcp`. Until it is, use [Run from source](#development).
 
 **Any MCP client (npx):**
 
 ```jsonc
 {
   "mcpServers": {
-    "qlik-sense": {
+    "sensekit": {
       "command": "npx",
-      "args": ["-y", "qlik-sense-mcp"],
+      "args": ["-y", "sensekit-mcp"],
       "env": {
         "QSEOW_HOST": "sense.example.com",
         "QSEOW_CERT_PATH": "/absolute/path/to/client.pem",
@@ -44,15 +44,15 @@ The commands below assume the package is published to npm as `qlik-sense-mcp`. U
 **Claude Code, one line:**
 
 ```bash
-claude mcp add qlik-sense --scope user \
+claude mcp add sensekit --scope user \
   -e QSEOW_HOST=sense.example.com \
   -e QSEOW_CERT_PATH=/absolute/path/to/client.pem \
   -e QSEOW_CERT_KEY_PATH=/absolute/path/to/client_key.pem \
   -e QSEOW_ROOT_CERT_PATH=/absolute/path/to/root.pem \
-  -- npx -y qlik-sense-mcp
+  -- npx -y sensekit-mcp
 ```
 
-**Claude Desktop bundle:** download `qlik-sense-mcp-<version>.mcpb` from the project's [releases](https://github.com/OWNER/qlik-sense-mcp/releases), or build it yourself with `npm run bundle`, then open it. Claude Desktop asks for the host, auth mode and certificate files; there is no JSON to edit.
+**Claude Desktop bundle:** download `sensekit-mcp-<version>.mcpb` from the project's [releases](https://github.com/henny-bee/SenseKit-MCP/releases), or build it yourself with `npm run bundle`, then open it. Claude Desktop asks for the host, auth mode and certificate files; there is no JSON to edit.
 
 The server starts **read-only**. To allow write tools, add `QSEOW_ALLOW_MUTATIONS=true`, preferably against a test site first. On start it prints one line to stderr with the host, auth mode, enabled groups and mutation status.
 
@@ -178,11 +178,11 @@ node dist/index.js     # run the stdio server from source
 
 ## Credits
 
-qlik-sense-mcp is based on [qseow-mcp](https://github.com/rmterenzi/qseow-mcp) by Terenzi LLC, licensed under Apache-2.0. Its original QRS, Engine and Proxy tools, the render-validation approach, and the authentication research documented here come from that project. This fork has been substantially modified by XL; see [CHANGELOG.md](CHANGELOG.md) and [NOTICE](NOTICE).
+SenseKit-MCP is based on [qseow-mcp](https://github.com/rmterenzi/qseow-mcp) by Terenzi LLC, licensed under Apache-2.0. Its original QRS, Engine and Proxy tools, the render-validation approach, and the authentication research documented here come from that project. This fork has been substantially modified by H-Bee; see [CHANGELOG.md](CHANGELOG.md) and [NOTICE](NOTICE).
 
 ## License
 
-Apache License 2.0. Copyright 2026 XL. Portions copyright 2026 Terenzi LLC. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
+Apache License 2.0. Copyright 2026 H-Bee. Portions copyright 2026 Terenzi LLC. See [LICENSE](LICENSE) and [NOTICE](NOTICE).
 
 ## Trademarks
 

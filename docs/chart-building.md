@@ -4,7 +4,7 @@ The developer group includes a sheet and chart builder. It creates sheets and vi
 
 All tools on this page except `validate_sheet` are mutation-gated: they exist only when `QSEOW_ALLOW_MUTATIONS=true`. Exact input schemas are in [tools.md](tools.md).
 
-> **Verification status, in short.** The 12 original chart types, built from plain string inputs, were render-verified in a real browser by the upstream project on Qlik Sense May 2026. Everything this fork added to the builder (styling options, number formats, colors, sort by measure, stacked and horizontal bars, labels and sort on dimensions, calculated dimensions, master-item links in charts, and the filterpane) is **not yet render-verified**. See [Verification status](#verification-status) and [how to verify](#verifying-rendering-with-render_proofmjs).
+> **Verification status, in short.** The 12 original chart types, built from plain string inputs, were render-verified in a real browser by the upstream project on Qlik Sense May 2026. Everything this fork added to the builder (styling options, number formats, colors, sort by measure, stacked and horizontal bars, labels and sort on dimensions, calculated dimensions, master-item links in charts, null and zero rows, pivot column dimensions, combo chart series, and the filterpane) is **not yet render-verified**. See [Verification status](#verification-status) and [how to verify](#verifying-rendering-with-render_proofmjs).
 
 ## The tools
 
@@ -28,12 +28,12 @@ Useful read-only companions: `get_app_data_model` (field names), `list_sheets`, 
 | `gauge` | 0 | 1 | Property set mirrored from a gauge authored in the Qlik client. |
 | `barchart` | 1–2 | 1–9 | Supports `orientation` and `stacked`. |
 | `linechart` | 1–2 | 1–9 | |
-| `combochart` | 1 | 1–9 | |
+| `combochart` | 1 | 1–9 | Each measure can be a bar, line or marker on the primary or secondary axis (`series`). |
 | `piechart` | 1 | 1 | |
 | `scatterplot` | 1 | 2–3 | |
 | `treemap` | 1–9 | 1 | Uses tree-mode cube (`qMode: "K"`). Needs a large tile. |
 | `table` | 0–99 | 0–99 | |
-| `pivot-table` | 1–99 | 1–99 | Uses pivot cube (`qMode: "P"`). |
+| `pivot-table` | 1–99 | 1–99 | Uses pivot cube (`qMode: "P"`). Dimensions are rows unless marked `pivotColumn`. |
 | `listbox` | 1 | 0 | |
 | `text-image` | 0 | 0 | Shows the `title` text as its content. It takes no measures; use a `kpi` for a live value. |
 | `filterpane` | 1–20 | 0 | A container with one listbox child per dimension. Not render-verified. |
@@ -76,6 +76,15 @@ Each entry in `dimensions` is either a string or an object.
 
 An object needs **exactly one** of `field`, `expression` or `libraryId`. `sort` is one of `asc`, `desc` or `loadOrder`. A `label` on a master-dimension link is ignored (the master item's own label is shown) and reported in `notes`.
 
+Two more keys work in any of the object forms:
+
+| Key | Example | Meaning |
+|---|---|---|
+| `includeNulls` | `{ "field": "Salesrep", "includeNulls": false }` | `false` hides the dimension's null row, the `-` entry with value 0. This is the client's **Include null values** checkbox (`qNullSuppression`). The default (`true`, or leaving it out) shows it, as the client does. Applies to every type with a hypercube; on a listbox or filterpane it is ignored and reported in `notes`. |
+| `pivotColumn` | `{ "field": "Year", "pivotColumn": true }` | `pivot-table` only: the dimension goes across the top instead of down the side. Column dimensions must come **after** all row dimensions, and at least one row dimension must remain; otherwise the request is refused with `INVALID_INPUT`. On any other type it is ignored and reported in `notes`. |
+
+Where a null row comes from: a calculated dimension that returns null for some records puts all of them in one `-` row, for example the products outside the top 10 in `=Aggr(If(Rank(Sum(Sales)) <= 10, Product), Product)`. Fact records whose key has no match in the dimension's table do the same. Dimension values with no data at all, such as sales reps without orders, are not null rows but zero rows; hide those with `options.includeZeros: false`.
+
 ### Measures
 
 | Form | Example | Meaning |
@@ -85,6 +94,10 @@ An object needs **exactly one** of `field`, `expression` or `libraryId`. `sort` 
 | `{ libraryId }` | `{ "libraryId": "<master measure id>", "numberFormat": { "type": "percent" } }` | A link to a master measure. A number format here is a per-chart override; a label is ignored and reported in `notes`. |
 
 An object needs **exactly one** of `expression` or `libraryId`. `color` is a hex color (`#rgb` or `#rrggbb`) and applies only to `barchart`, `linechart` and `combochart`. It is ignored when `options.colorMode` is also set.
+
+`series` applies only to `combochart` and is `{ type?, axis? }`: `type` is `bar` (default), `line` or `marker`, and `axis` is `primary` (default) or `secondary`. Use the secondary axis for a measure on a different scale, such as a margin % next to sales amounts; on one shared axis it would draw as a flat line at the bottom. Once any measure has a `series`, every measure of the chart gets one (the defaults where you gave none), and a chart with a secondary-axis measure gets a second measure axis on the far side. On other types `series` is ignored and reported in `notes`.
+
+The combo chart stores measure colors and series the way the Qlik client does for a combo chart (`qDef.color` and `qDef.series`, mirrored from a client-authored combo chart), not the `qDef.coloring` that bar and line charts use.
 
 ### Number formats
 
@@ -115,6 +128,7 @@ An object needs **exactly one** of `expression` or `libraryId`. `color` is a hex
 | `orientation` | `vertical`, `horizontal` | barchart |
 | `stacked` | boolean | barchart |
 | `sortByMeasure` | `asc`, `desc` | barchart, combochart, piechart, table. Sorts by the first measure. |
+| `includeZeros` | boolean | barchart, linechart, combochart, piechart, scatterplot, treemap, table, pivot-table. `false` hides rows whose measures are all zero, like unticking **Include zero values** (`qSuppressZero`). The default shows them. |
 
 `colorMode: "single"` without a `color` is refused.
 
@@ -147,6 +161,14 @@ An explicit `position` is used exactly as given. If it overlaps another cell, th
 - A filterpane's listbox children are deleted and recreated.
 
 `move_sheet_object` and `delete_sheet_object` check first that the object is a child of the given sheet.
+
+`update_sheet_object` carries `includeNulls` and `pivotColumn` over with the dimensions, and `series` and colors with the measures, when you leave those out. `includeZeros` is an option, so like every option it reverts to the default unless you pass it again.
+
+## Concurrent calls and saving
+
+Write calls on the same app run **one at a time**, in the order they arrive; calls on different apps still run in parallel. Without this, parallel calls broke in two ways on a live site: two `add_sheet_object` calls on one sheet both read the sheet's cell list and wrote it back, so one object lost its cell; and their saves collided, so the engine answered `Write Failed`. This covers every builder and master-item tool, `set_script` and `reload_app`. It works within one server process; separate processes writing to the same app are not coordinated.
+
+Every save is retried up to three times (after 0.25, 0.75 and 1.5 seconds) when the engine answers `Write Failed` (engine error 9000), and only then. If it still fails, the call returns `ENGINE_ERROR` with `details.attempts`. The change then exists in the engine session but is **not saved**, and it disappears when the session closes. Check the app's current state (for example with `get_sheet_objects`) before you retry, so the retry does not create a duplicate object.
 
 ## The validation gate
 
@@ -208,9 +230,14 @@ The gate inspects properties and engine results. It cannot see pixels. In partic
 - number formats, on chart measures and on master measures;
 - master-item links (`libraryId`) in charts;
 - the object form of dimensions: labels, sort, calculated dimensions;
+- `includeNulls` and `includeZeros`;
+- pivot column dimensions (`pivotColumn`);
+- combo chart `series`, the second measure axis and the combo chart's per-measure colors. These mirror a client-authored combo chart harvested from a live site (2026-10), but have not been through the render proof;
 - the filterpane.
 
 The engine-side gate checks all of these as far as it can. Whether they paint correctly is open until someone runs the render proof below.
+
+**Not supported yet.** Dimension limits ("show only the top 10, the rest as Others", `qOtherTotalSpec`) cannot be set. A calculated dimension such as `=Aggr(If(Rank(Sum(Sales)) <= 10, Product), Product)` gives a top 10, and `includeNulls: false` hides the null row it leaves for the other products.
 
 ## Verifying rendering with `render_proof.mjs`
 

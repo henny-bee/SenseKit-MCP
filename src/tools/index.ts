@@ -10,6 +10,7 @@ import { registerInspectorTools } from "./inspector.js";
 import { registerOpsTools } from "./ops.js";
 import { registerBuilderTools } from "./builder.js";
 import { registerMasterTools } from "./master.js";
+import { KeyedLock } from "../core/lock.js";
 
 /** Everything a tool handler may touch. Passed in, never constructed here,
  *  so the whole tool surface can be wired against fakes. */
@@ -24,6 +25,9 @@ export interface ToolDeps {
  *  nowhere else; mutation gating stays inside each module, next to the
  *  tools it hides. Registration order is the tools/list order. */
 export function registerTools(server: McpServer, { cfg, engine, qrs, session }: ToolDeps): void {
+  // One lock per server, shared by every module that writes to an app, so
+  // concurrent mutating calls on the same app run one after another.
+  const writes = new KeyedLock();
   // Mutating tools are gated at REGISTRATION: with mutations disabled they
   // are never added to the server, so tools/list is honestly read-only.
   if (cfg.toolGroups.has("admin")) {
@@ -39,13 +43,13 @@ export function registerTools(server: McpServer, { cfg, engine, qrs, session }: 
     registerInspectorTools(server, engine);
   }
   if (cfg.toolGroups.has("developer")) {
-    registerDeveloperTools(server, engine, qrs, cfg);
+    registerDeveloperTools(server, engine, qrs, cfg, writes);
     // UI builder + render-validation gate. validate_sheet is read-only and
     // always registers with the group; create/add/update/move/delete are
     // mutation-gated inside.
-    registerBuilderTools(server, engine, qrs, cfg);
+    registerBuilderTools(server, engine, qrs, cfg, writes);
     // Master-item governance (create/delete library measures + dimensions).
     // All mutating, so nothing registers unless mutations are enabled.
-    registerMasterTools(server, engine, cfg);
+    registerMasterTools(server, engine, cfg, writes);
   }
 }

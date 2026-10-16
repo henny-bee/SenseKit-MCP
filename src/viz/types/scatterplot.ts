@@ -9,7 +9,7 @@ export const scatterplot: ChartType = {
   spec: { minDims: 1, maxDims: 1, minMeasures: 2, maxMeasures: 3, cube: "hypercube" },
   minTile: { colspan: 8, rowspan: 6 },
   nebula: true,
-  options: ["colorMode", "showLegend"],
+  options: ["colorMode", "showLegend", "includeZeros"],
   build: (input) => buildCube(input, {
     nebula: true,
     extras: {

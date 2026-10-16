@@ -193,3 +193,57 @@ test("filterpane: spec, parent has no cube, one listbox child per dimension", ()
   assert.equal(kids[2].qListObjectDef.qLibraryId, "lib-d");
   assert.ok(kids.every((k) => k.visualization === "listbox"));
 });
+
+// ── Null and zero rows, pivot columns, combo series ─────────────────────────
+
+test("buildVizProps: includeNulls false sets qNullSuppression on hypercube dimensions only", () => {
+  const dims = [{ field: "Region", includeNulls: false }, "Product"];
+  for (const viz of ["barchart", "table", "pivot-table", "treemap"]) {
+    const qd = buildVizProps(viz, "t", dims, ["Sum(Sales)"]).qHyperCubeDef.qDimensions;
+    assert.equal(qd[0].qNullSuppression, true, viz);
+    assert.notEqual(qd[1].qNullSuppression, true, viz);
+  }
+  // true is the client default: the same definition as leaving it out.
+  assert.deepEqual(
+    buildVizProps("barchart", "t", [{ field: "Region", includeNulls: true }], ["Sum(Sales)"]),
+    buildVizProps("barchart", "t", ["Region"], ["Sum(Sales)"]),
+  );
+  const lb = buildVizProps("listbox", "t", [{ field: "Region", includeNulls: false }], []);
+  assert.equal(lb.qListObjectDef.qNullSuppression, undefined);
+});
+
+test("buildVizProps: includeZeros false sets qSuppressZero", () => {
+  for (const viz of ["barchart", "combochart", "table", "pivot-table", "treemap"]) {
+    const cube = buildVizProps(viz, "t", ["Region"], ["Sum(Sales)"], { includeZeros: false }).qHyperCubeDef;
+    assert.equal(cube.qSuppressZero, true, viz);
+  }
+  assert.equal(buildVizProps("barchart", "t", ["Region"], ["Sum(Sales)"], { includeZeros: true }).qHyperCubeDef.qSuppressZero, false);
+});
+
+test("buildVizProps pivot-table: trailing pivotColumn dimensions become columns", () => {
+  const cube = buildVizProps("pivot-table", "t", ["Region", { field: "Product", pivotColumn: true }, { field: "FiscalYear", pivotColumn: true }], ["Sum(Sales)"]).qHyperCubeDef;
+  assert.equal(cube.qMode, "P");
+  assert.equal(cube.qNoOfLeftDims, 1);
+  assert.equal(buildVizProps("pivot-table", "t", ["Region", "Product"], ["Sum(Sales)"]).qHyperCubeDef.qNoOfLeftDims, 2);
+  assert.throws(() => buildVizProps("pivot-table", "t", [{ field: "Region", pivotColumn: true }, "Product"], ["Sum(Sales)"]), /at least one row dimension/);
+  assert.throws(() => buildVizProps("pivot-table", "t", ["Region", { field: "Product", pivotColumn: true }, "FiscalYear"], ["Sum(Sales)"]), /must come after all row dimensions/);
+});
+
+test("buildVizProps combochart: series and measure colors in the client's combo shape", () => {
+  const props = buildVizProps("combochart", "t", ["Month"], [
+    { expression: "Sum(Sales)", color: "#1f4e79" },
+    { expression: "Sum(Margin)/Sum(Sales)", series: { type: "line", axis: "secondary" } },
+  ]);
+  const [m1, m2] = props.qHyperCubeDef.qMeasures;
+  // Once one measure names a series, every measure gets one (default bar, primary).
+  assert.deepEqual(m1.qDef.series, { type: "bar", axis: 0 });
+  assert.deepEqual(m2.qDef.series, { type: "line", axis: 1 });
+  assert.deepEqual(props.measureAxes.map((a) => a.dock), ["near", "far"]);
+  assert.deepEqual(m1.qDef.color, { on: true, mode: "primary", paletteColor: { index: -1, color: "#1f4e79", alpha: 1 } });
+  assert.equal(m1.qDef.coloring, undefined);
+  assert.equal(props.color.useBaseColors, "off");
+  // Everything on the primary axis: no second axis block.
+  const primary = buildVizProps("combochart", "t", ["Month"], [{ expression: "Sum(A)", series: { type: "marker" } }]);
+  assert.equal(primary.measureAxes, undefined);
+  assert.deepEqual(primary.qHyperCubeDef.qMeasures[0].qDef.series, { type: "marker", axis: 0 });
+});

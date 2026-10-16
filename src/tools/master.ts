@@ -8,6 +8,8 @@ import { guid } from "../core/schemas.js";
 import { redactSecrets } from "../core/redact.js";
 import { expressionWarnings, fieldNames, masterItems, titleTaken } from "../qix/quality.js";
 import { libraryReferences } from "../qix/objects.js";
+import { saveApp } from "../qix/save.js";
+import type { KeyedLock } from "../core/lock.js";
 import { numFormatToEngine, type EngineNumFormat } from "../viz/number-format.js";
 import { numberFormatSchema } from "../viz/schemas.js";
 
@@ -19,7 +21,7 @@ import { numberFormatSchema } from "../viz/schemas.js";
 //
 // All three tools are mutations and register only with QSEOW_ALLOW_MUTATIONS.
 
-export function registerMasterTools(server: McpServer, engine: EngineClient, cfg: Config): void {
+export function registerMasterTools(server: McpServer, engine: EngineClient, cfg: Config, writes: KeyedLock): void {
   if (!cfg.allowMutations) return;
 
   server.registerTool(
@@ -40,7 +42,7 @@ export function registerMasterTools(server: McpServer, engine: EngineClient, cfg
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async ({ appId, title, expression, label, description, tags, numberFormat }) => {
+    writes.byApp(async ({ appId, title, expression, label, description, tags, numberFormat }) => {
       // Master measures are stored WITHOUT the leading "=" (as the client
       // writes them); evaluate_master_measure evaluates this string as-is.
       const expr = expression.trim().replace(/^=/, "").trim();
@@ -69,9 +71,9 @@ export function registerMasterTools(server: McpServer, engine: EngineClient, cfg
         qMetaDef: { title, description: description ?? "", tags: tags ?? [] },
       });
       const measureId = (await measure.getLayout()).qInfo.qId;
-      await app.doSave();
+      await saveApp(app);
       return text({ measureId, title, label: label ?? title, expression: expr, ...(nf ? { numFormat: nf.qNumFormat } : {}) });
-    },
+    }),
   );
 
   server.registerTool(
@@ -91,7 +93,7 @@ export function registerMasterTools(server: McpServer, engine: EngineClient, cfg
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async ({ appId, title, fields, label, description, tags }) => {
+    writes.byApp(async ({ appId, title, fields, label, description, tags }) => {
       const app = await engine.app(appId);
       const plain = fields.filter((f) => !f.startsWith("="));
       if (plain.length) {
@@ -119,9 +121,9 @@ export function registerMasterTools(server: McpServer, engine: EngineClient, cfg
         qMetaDef: { title, description: description ?? "", tags: tags ?? [] },
       });
       const dimensionId = (await dim.getLayout()).qInfo.qId;
-      await app.doSave();
+      await saveApp(app);
       return text({ dimensionId, title, grouping: drill ? "drill-down" : "single", fields, labels });
-    },
+    }),
   );
 
   server.registerTool(
@@ -139,7 +141,7 @@ export function registerMasterTools(server: McpServer, engine: EngineClient, cfg
       },
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
-    async ({ appId, kind, id, force }) => {
+    writes.byApp(async ({ appId, kind, id, force }) => {
       const app = await engine.app(appId);
       const masters = await masterItems(app, [kind]);
       const items = kind === "measure" ? masters.measures : masters.dimensions;
@@ -157,8 +159,8 @@ export function registerMasterTools(server: McpServer, engine: EngineClient, cfg
       }
       const ok = kind === "measure" ? await app.destroyMeasure(id) : await app.destroyDimension(id);
       if (ok === false) throw new ToolError("ENGINE_ERROR", `engine refused to destroy ${kind} ${id}`, { kind, id });
-      await app.doSave();
+      await saveApp(app);
       return text(redactSecrets({ deleted: id, kind, title, forced: refs.length > 0, brokenReferences: refs }));
-    },
+    }),
   );
 }

@@ -10,7 +10,7 @@ export const piechart: ChartType = {
   spec: { minDims: 1, maxDims: 1, minMeasures: 1, maxMeasures: 1, cube: "hypercube" },
   minTile: { colspan: 8, rowspan: 6 },
   nebula: true,
-  options: ["colorMode", "showLegend", "showDataLabels", "sortByMeasure"],
+  options: ["colorMode", "showLegend", "showDataLabels", "sortByMeasure", "includeZeros"],
   build: (input) => buildCube(input, {
     nebula: true,
     extras: {

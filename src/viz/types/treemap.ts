@@ -7,14 +7,14 @@
 // tile, hence its minimum tile.
 
 import { fieldDef, noEq } from "../inputs.js";
-import { finishDim, finishMeasure, applyOptions } from "../build.js";
+import { finishDim, finishNulls, finishMeasure, applyOptions } from "../build.js";
 import type { ChartType } from "./contract.js";
 
 export const treemap: ChartType = {
   name: "treemap",
   spec: { minDims: 1, maxDims: 9, minMeasures: 1, maxMeasures: 1, cube: "hypercube" },
   minTile: { colspan: 8, rowspan: 8 },
-  options: ["colorMode", "showLegend", "showDataLabels"],
+  options: ["colorMode", "showLegend", "showDataLabels", "includeZeros"],
   build: ({ viz, base, dims, meas, applied }) => {
     // Mirrored from a CLIENT-AUTHORED treemap (Qlik's Content Monitor app).
     // Two things the generic path got wrong: the cube must be qMode "K"
@@ -36,10 +36,10 @@ export const treemap: ChartType = {
       },
       tooltip: { auto: true, hideBasic: false, title: "", description: "" },
       qHyperCubeDef: {
-        qDimensions: dims.map((d, i) => finishDim({
+        qDimensions: dims.map((d, i) => finishNulls(finishDim({
           qDef: { qGrouping: "N", qFieldDefs: [fieldDef(d)], qSortCriterias: [{ qSortByNumeric: 1, qSortByAscii: 1, qSortByLoadOrder: 1 }], autoSort: true, cId: `d${i + 1}`, othersLabel: "Others" },
           qOtherTotalSpec: {}, qAttributeExpressions: [], qAttributeDimensions: [],
-        }, d)),
+        }, d), d)),
         qMeasures: meas.map((m, i) => finishMeasure({
           // client stores the expression WITHOUT a leading "="
           qDef: { qGrouping: "N", qDef: noEq(m.expression ?? ""), qLabel: "", qNumFormat: { qType: "U" }, autoSort: true, cId: `m${i + 1}`, numFormatFromTemplate: true },

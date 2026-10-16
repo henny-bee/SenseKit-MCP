@@ -3,7 +3,7 @@
 > ⚠ **Runs against a live Qlik site and creates real objects** — two apps, a folder data connection, a master measure, a sheet and KPI — and `plant.mjs` rewrites a real load script. Point it at a sandbox or the demo box, **never production.** `reset.mjs` restores the clean state.
 
 **In one sentence:** month-end close shows the dashboard $50M higher
-than the certified datamart; an agent using qlik-sense-mcp walks KPI → object →
+than the certified datamart; an agent using SenseKit-MCP walks KPI → object →
 sheet → app → script → source and finds the double-loaded adjustment batch —
 live, in under 10 minutes.
 
@@ -18,7 +18,7 @@ forever; every value is deterministic to the cent.
 
 ## Prerequisites
 
-- qlik-sense-mcp registered with the MCP client, certificate mode,
+- SenseKit-MCP registered with the MCP client, certificate mode,
   `QSEOW_ALLOW_MUTATIONS=true` (the fix step needs `set_script`/`reload_app`).
 - `node setup.mjs` once, `node plant.mjs` before each run (same env as the server).
 - App ids print at setup; the agent needs neither — it discovers them.

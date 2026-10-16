@@ -1,16 +1,16 @@
 {
   "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
-  "name": "io.github.OWNER/qlik-sense-mcp",
+  "name": "io.github.henny-bee/sensekit-mcp",
   "description": "MCP server for Qlik Sense Enterprise on Windows: inspect, troubleshoot, govern and build apps.",
   "repository": {
-    "url": "https://github.com/OWNER/qlik-sense-mcp",
+    "url": "https://github.com/henny-bee/SenseKit-MCP",
     "source": "github"
   },
   "version": "1.0.0",
   "packages": [
     {
       "registryType": "npm",
-      "identifier": "qlik-sense-mcp",
+      "identifier": "sensekit-mcp",
       "version": "1.0.0",
       "transport": {
         "type": "stdio"

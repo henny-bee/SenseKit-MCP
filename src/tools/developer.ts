@@ -10,8 +10,10 @@ import { guid } from "../core/schemas.js";
 import { scrubString, REDACTED } from "../core/redact.js";
 import { qrsQuote } from "../core/qrs-filter.js";
 import { ToolError } from "../core/errors.js";
+import type { KeyedLock } from "../core/lock.js";
+import { saveApp } from "../qix/save.js";
 
-export function registerDeveloperTools(server: McpServer, engine: EngineClient, qrs: QrsClient, cfg: Config): void {
+export function registerDeveloperTools(server: McpServer, engine: EngineClient, qrs: QrsClient, cfg: Config, writes: KeyedLock): void {
   server.registerTool(
     "get_script",
     {
@@ -57,7 +59,7 @@ export function registerDeveloperTools(server: McpServer, engine: EngineClient, 
       },
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
-    async ({ appId, script }) => {
+    writes.byApp(async ({ appId, script }) => {
       // A get_script -> edit -> set_script round trip of a script whose
       // credentials were redacted would silently overwrite the real values
       // with the mask. Refuse rather than corrupt; secrets belong in data
@@ -71,9 +73,9 @@ export function registerDeveloperTools(server: McpServer, engine: EngineClient, 
       }
       const app = await engine.app(appId);
       await app.setScript(script);
-      await app.doSave();
+      await saveApp(app);
       return text(`Script updated and saved for ${appId} (${script.length} chars).`);
-    },
+    }),
   );
 
   server.registerTool(
@@ -86,7 +88,7 @@ export function registerDeveloperTools(server: McpServer, engine: EngineClient, 
       },
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: false, openWorldHint: false },
     },
-    async ({ appId, partial }) => {
+    writes.byApp(async ({ appId, partial }) => {
       const g = await engine.global();
       const app = await engine.app(appId);
       const ok = await app.doReload(0, partial ?? false, false);
@@ -95,9 +97,9 @@ export function registerDeveloperTools(server: McpServer, engine: EngineClient, 
         const p = await g.getProgress(0);
         progress = (p.qPersistentProgressMessages ?? []).map((m) => m.qMessageParameters?.join(" ") ?? "").join("\n");
       } catch { /* progress unavailable */ }
-      if (ok) await app.doSave();
+      if (ok) await saveApp(app);
       return text({ appId, reloadSuccess: ok, saved: ok, progressTail: scrubString(progress.slice(-2000)) });
-    },
+    }),
   );
 
   server.registerTool(
@@ -121,7 +123,7 @@ export function registerDeveloperTools(server: McpServer, engine: EngineClient, 
         const app = await engine.app(appId);
         await app.setScript(script);
         if (reload) reloaded = await app.doReload(0, false, false);
-        await app.doSave();
+        await saveApp(app);
       }
       return text({ appId, name, scriptSet: Boolean(script), reloaded });
     },

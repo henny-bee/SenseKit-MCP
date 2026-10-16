@@ -22,6 +22,12 @@ export interface DimSpec {
   libraryId?: string;
   label?: string;
   sort?: DimSort;
+  /** false = the client's "Include null values" unticked (qNullSuppression).
+   *  Hypercube types only; absent or true is the client default. */
+  includeNulls?: boolean;
+  /** pivot-table only: show this dimension across the top. Column
+   *  dimensions come after every row dimension (qNoOfLeftDims). */
+  pivotColumn?: boolean;
 }
 export type DimInput = string | DimSpec;
 
@@ -34,10 +40,25 @@ export interface MeasureSpec {
   label?: string;
   numberFormat?: NumberFormatSpec;
   color?: string;
+  /** combochart only: how this measure is drawn and on which axis. */
+  series?: SeriesSpec;
 }
 export type MeasureInput = string | MeasureSpec;
 
+export type SeriesType = "bar" | "line" | "marker";
+export type SeriesAxis = "primary" | "secondary";
+/** Omitted fields default to a bar on the primary axis. */
+export interface SeriesSpec { type?: SeriesType; axis?: SeriesAxis }
+
 const DIM_SORTS: readonly DimSort[] = ["asc", "desc", "loadOrder"];
+export const SERIES_TYPES: readonly SeriesType[] = ["bar", "line", "marker"];
+export const SERIES_AXES: readonly SeriesAxis[] = ["primary", "secondary"];
+
+function optionalBoolean(where: string, key: string, v: unknown): boolean | undefined {
+  if (v === undefined) return undefined;
+  if (typeof v !== "boolean") throw new ToolError("INVALID_INPUT", `${where}: ${key} must be true or false`);
+  return v;
+}
 
 function exactlyOne<T extends object>(where: string, obj: T, keys: ReadonlyArray<keyof T & string>): keyof T & string {
   const given = keys.filter((k) => obj[k] !== undefined);
@@ -80,6 +101,10 @@ export function normalizeDims(inputs: ReadonlyArray<DimInput> = []): DimSpec[] {
       if (!DIM_SORTS.includes(d.sort)) throw new ToolError("INVALID_INPUT", `${where}: sort must be one of ${DIM_SORTS.join(", ")}`);
       out.sort = d.sort;
     }
+    const includeNulls = optionalBoolean(where, "includeNulls", d.includeNulls);
+    if (includeNulls !== undefined) out.includeNulls = includeNulls;
+    const pivotColumn = optionalBoolean(where, "pivotColumn", d.pivotColumn);
+    if (pivotColumn !== undefined) out.pivotColumn = pivotColumn;
     return out;
   });
 }
@@ -105,6 +130,13 @@ export function normalizeMeasures(inputs: ReadonlyArray<MeasureInput> = []): Mea
     if (m.color !== undefined) {
       if (!HEX_COLOR.test(m.color)) throw new ToolError("INVALID_INPUT", `${where}: color must be a hex color like #1f77b4, got "${m.color}"`);
       out.color = m.color;
+    }
+    if (m.series !== undefined) {
+      const s = m.series;
+      if (s === null || typeof s !== "object") throw new ToolError("INVALID_INPUT", `${where}: series must be an object {type?, axis?}`);
+      if (s.type !== undefined && !SERIES_TYPES.includes(s.type)) throw new ToolError("INVALID_INPUT", `${where}: series.type must be one of ${SERIES_TYPES.join(", ")}`);
+      if (s.axis !== undefined && !SERIES_AXES.includes(s.axis)) throw new ToolError("INVALID_INPUT", `${where}: series.axis must be one of ${SERIES_AXES.join(", ")}`);
+      out.series = { ...(s.type !== undefined ? { type: s.type } : {}), ...(s.axis !== undefined ? { axis: s.axis } : {}) };
     }
     return out;
   });

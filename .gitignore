@@ -1,20 +1,35 @@
 node_modules/
 dist/
-.env
-*.pem
-*.pfx
-*.key
-*.crt
-client.p12
-certs/
-.DS_Store
 coverage/
-# package-lock.json is COMMITTED on purpose: `npm ci` in CI and
-# reproducible installs for consumers both require it.
+*.tsbuildinfo
 
-# MCPB bundle build artifacts (the .mcpb is attached to the GitHub release)
+*.tgz
 mcpb/build/
 mcpb/*.mcpb
 
-# Local credentials for this machine (qlik.env, password.txt) — never commit
-.qlik-mcp/
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+*.p12
+*.key
+*.crt
+*.jwt
+certs/
+password.txt
+
+
+shots/
+/inventory.json
+
+*.log
+npm-debug.log*
+
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+*.swp
+

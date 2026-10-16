@@ -30,3 +30,17 @@ test("resolveVizOptions: color rules", () => {
   const libLabel = resolveVizOptions("barchart", {}, [{ libraryId: "d", label: "x" }], [{ libraryId: "m", label: "y" }]);
   assert.equal(libLabel.notes.length, 2);
 });
+
+test("resolveVizOptions: includeNulls, pivotColumn, series and includeZeros are reported where they do not apply", () => {
+  const bar = resolveVizOptions("barchart", { includeZeros: false }, [{ field: "A", pivotColumn: true }], [{ expression: "Sum(X)", series: { type: "line" } }]);
+  assert.equal(bar.applied.includeZeros, false);
+  assert.ok(bar.notes.some((n) => /pivotColumn only applies to pivot-table/.test(n)));
+  assert.ok(bar.notes.some((n) => /series only applies to combochart/.test(n)));
+  const lb = resolveVizOptions("listbox", {}, [{ field: "A", includeNulls: false }], []);
+  assert.ok(lb.notes.some((n) => /includeNulls does not apply to listbox/.test(n)));
+  const kpi = resolveVizOptions("kpi", { includeZeros: false }, [], [{ expression: "Sum(X)" }]);
+  assert.ok(kpi.notes.some((n) => /includeZeros does not apply to kpi/.test(n)));
+  assert.equal(kpi.applied.includeZeros, undefined);
+  // An extension gets the generic hypercube, so includeNulls applies to it.
+  assert.deepEqual(resolveVizOptions("my-extension", {}, [{ field: "A", includeNulls: false }], []).notes, []);
+});

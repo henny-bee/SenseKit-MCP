@@ -48,3 +48,13 @@ test("normalizeMeasures: strings, objects, and their errors", () => {
   assert.throws(() => normalizeMeasures([{ expression: "Sum(X)", numberFormat: { type: "custom" } }]), /measures\[0\]: .*custom" needs a pattern/);
   assert.throws(() => normalizeMeasures([{ expression: "Sum(X)", numberFormat: { type: "number", decimals: 16 } }]), /decimals must be an integer 0-15/);
 });
+
+test("normalize: includeNulls and pivotColumn must be booleans; series type and axis are checked", () => {
+  assert.deepEqual(normalizeDims([{ field: "A", includeNulls: false, pivotColumn: true }]), [{ field: "A", includeNulls: false, pivotColumn: true }]);
+  assert.throws(() => normalizeDims([{ field: "A", includeNulls: "no" }]), /includeNulls must be true or false/);
+  assert.throws(() => normalizeDims([{ field: "A", pivotColumn: 1 }]), /pivotColumn must be true or false/);
+  assert.deepEqual(normalizeMeasures([{ expression: "Sum(X)", series: { type: "line", axis: "secondary" } }]), [{ expression: "Sum(X)", series: { type: "line", axis: "secondary" } }]);
+  assert.deepEqual(normalizeMeasures([{ expression: "Sum(X)", series: {} }]), [{ expression: "Sum(X)", series: {} }]);
+  assert.throws(() => normalizeMeasures([{ expression: "Sum(X)", series: { type: "area" } }]), /series\.type must be one of bar, line, marker/);
+  assert.throws(() => normalizeMeasures([{ expression: "Sum(X)", series: { axis: "left" } }]), /series\.axis must be one of primary, secondary/);
+});

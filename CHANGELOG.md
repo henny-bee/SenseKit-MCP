@@ -1,14 +1,14 @@
 # Changelog
 
-All notable changes to qlik-sense-mcp are recorded here.
+All notable changes to SenseKit-MCP are recorded here.
 
 ## 1.0.0 — Unreleased
 
-First release of **qlik-sense-mcp**, a substantially modified fork of [qseow-mcp](https://github.com/rmterenzi/qseow-mcp) 0.5.2 by Terenzi LLC (Apache-2.0). See [NOTICE](NOTICE). The entries below describe what changed compared with qseow-mcp 0.5.2.
+First release of **SenseKit-MCP**, a substantially modified fork of [qseow-mcp](https://github.com/rmterenzi/qseow-mcp) 0.5.2 by Terenzi LLC (Apache-2.0). See [NOTICE](NOTICE). The entries below describe what changed compared with qseow-mcp 0.5.2.
 
 ### Naming and packaging
 
-- The npm package, the `bin` command, the MCP server name, the MCP Registry name (`io.github.OWNER/qlik-sense-mcp`) and the Claude Desktop bundle (`qlik-sense-mcp-<version>.mcpb`) are now `qlik-sense-mcp`.
+- The npm package, the `bin` command, the MCP server name, the MCP Registry name (`io.github.henny-bee/sensekit-mcp`) and the Claude Desktop bundle (`sensekit-mcp-<version>.mcpb`) are now `sensekit-mcp`, and the project is called **SenseKit-MCP**. The identifiers are lowercase because npm package names cannot contain capital letters.
 - **Unchanged on purpose:** all `QSEOW_*` environment variables and all tool names. Existing client configurations only need the new package or command name.
 - `server.json` now lists every environment variable the server reads, including the ports, `QSEOW_CERT_PASSPHRASE`, the certificate identity, `QSEOW_JWT_PATH` and `QSEOW_ENV_PATH`.
 
@@ -28,6 +28,10 @@ First release of **qlik-sense-mcp**, a substantially modified fork of [qseow-mcp
 - Number formats: `auto`, `number`, `integer`, `percent`, `money`, `date` and `custom`, with optional pattern and decimals.
 - Chart `options`: `colorMode` and `color`, `showLegend`, `showDataLabels`, `orientation` and `stacked` (bar chart), and `sortByMeasure`. Options that do not apply to a type are ignored and reported in the response's `notes`.
 - New visualization type `filterpane` (one listbox child per dimension).
+- Null and zero rows: `includeNulls: false` on a dimension hides its null (`-`) row (`qNullSuppression`), and `options.includeZeros: false` hides rows whose measures are all zero (`qSuppressZero`), like the client's **Include null values** and **Include zero values** checkboxes.
+- Pivot columns: `pivotColumn: true` on the trailing dimensions of a `pivot-table` puts them across the top. Before, every pivot dimension was a row.
+- Combo chart series: `series: { type: bar | line | marker, axis: primary | secondary }` on a `combochart` measure, with a second measure axis when one is used. Combo chart measure colors are now written the way the client writes them for a combo chart (`qDef.color`). Both follow a client-authored combo chart.
+- `update_sheet_object` carries `includeNulls`, `pivotColumn`, `series` and combo colors over when dimensions or measures are omitted.
 - Plain string inputs still produce the same definitions as before.
 - None of these additions is render-verified yet. See [docs/chart-building.md](docs/chart-building.md#verification-status).
 
@@ -53,6 +57,9 @@ First release of **qlik-sense-mcp**, a substantially modified fork of [qseow-mcp
 
 - **jwt mode: expired proxy sessions recover.** If the proxy rejects the cached session (401 or 403 from QRS, 401 or 403 on the engine WebSocket upgrade, or the engine socket closing at open), the server bootstraps a new session and retries the operation once. Concurrent calls share one re-bootstrap. A 403 or a socket closed at open is only retried when the session is older than 60 seconds, so security-rule denials are not retried. Previously the server had to be restarted.
 - **`QSEOW_ROOT_CERT_PATH` works in every mode.** The CA is loaded with or without client-certificate files and trusted on every TLS connection, including the virtual proxy in jwt mode, where it was previously ignored.
+- **Parallel writes to one app no longer collide.** Mutating calls on the same app (builder, master items, `set_script`, `reload_app`) now run one at a time. In parallel, two `add_sheet_object` calls on one sheet could drop one object's cell, and concurrent saves failed with `Write Failed`; an object created but never saved was lost when the engine session closed.
+- **Saves retry `Write Failed`.** A save that fails with engine error 9000 is retried up to three times. If it still fails, the `ENGINE_ERROR` says the change is not saved and how many attempts were made.
+- **`.env.example` works when copied.** The `.env` loader keeps everything after `=`, so the example's end-of-line comments became part of the host and port values. Its pre-filled certificate paths also stopped any setup without those files, and `QSEOW_VP_PREFIX=jwt` sent windows logins to the `/jwt` proxy. Comments are now on their own lines and optional values are empty. The `.env` snippets in `docs/authentication.md` are fixed the same way, and `docs/configuration.md` states the comment rule.
 - **Auto-placement no longer overlaps tiles.** When the usual slot would overlap an earlier, taller tile (for example a fourth tile after an 8 × 6 pie chart), the tile goes to the first free 8-column-aligned slot instead. Sheets of plain 8 × 4 tiles are laid out as before.
 - **`scripts/render_proof.mjs`:** screenshots are named `<size>-<NN>-<viz>-<objectId>.png`, so objects of the same type no longer overwrite each other. The script now exits 1 unless every object rendered at every size, and ends with a summary of the objects that were not proven.
 

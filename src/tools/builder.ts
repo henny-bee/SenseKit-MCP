@@ -12,12 +12,14 @@ import { VIZ_SPECS } from "../viz/specs.js";
 import type { DimInput, MeasureInput } from "../viz/inputs.js";
 import { positionSchema, dimensionInputSchema, measureInputSchema, vizOptionsSchema } from "../viz/schemas.js";
 import { buildFilterpaneChildren } from "../viz/props.js";
-import { dimSpecFromDef, measureSpecFromDef, specsFromProps } from "../viz/read-back.js";
+import { cubeDimSpecs, dimSpecFromDef, measureSpecFromDef, specsFromProps } from "../viz/read-back.js";
 import { checkCellPlacement, cellBox, placeCell, placementFor } from "../viz/layout.js";
 import { validateObject, knownVisualizations, gateContext } from "../viz/validate.js";
 import { prepareDefinition, createVizObject } from "../viz/definition.js";
 import { mapPool, ENGINE_CONCURRENCY } from "../core/pool.js";
 import { requireChildOf, indexPropertyTree } from "../qix/objects.js";
+import { saveApp } from "../qix/save.js";
+import type { KeyedLock } from "../core/lock.js";
 
 // The UI-builder layer: create sheets and visualization objects, and — the
 // part that makes it shippable — a validation gate that checks what the
@@ -25,13 +27,13 @@ import { requireChildOf, indexPropertyTree } from "../qix/objects.js";
 // client draws as a blank tile; "saved" and "renders" are different claims.
 
 const dimensionsParam = z.array(dimensionInputSchema).optional()
-  .describe("Field names, or objects {field|expression|libraryId, label?, sort?} — exactly one of field/expression ('=Year(Date)', a calculated dimension)/libraryId (master dimension)");
+  .describe("Field names, or objects {field|expression|libraryId, label?, sort?, includeNulls?, pivotColumn?} — exactly one of field/expression ('=Year(Date)', a calculated dimension)/libraryId (master dimension)");
 const measuresParam = z.array(measureInputSchema).optional()
-  .describe("Expressions, e.g. 'Sum(Sales)', or objects {expression|libraryId, label?, numberFormat?, color?} — exactly one of expression/libraryId (master measure)");
+  .describe("Expressions, e.g. 'Sum(Sales)', or objects {expression|libraryId, label?, numberFormat?, color?, series?} — exactly one of expression/libraryId (master measure)");
 const optionsParam = vizOptionsSchema.optional()
-  .describe("Styling: colorMode/color, showLegend, showDataLabels, orientation + stacked (barchart), sortByMeasure. Options that don't apply to the type are ignored and listed in the response's notes. NOT yet render-verified.");
+  .describe("Styling: colorMode/color, showLegend, showDataLabels, orientation + stacked (barchart), sortByMeasure, includeZeros. Options that don't apply to the type are ignored and listed in the response's notes. NOT yet render-verified.");
 
-export function registerBuilderTools(server: McpServer, engine: EngineClient, qrs: QrsClient, cfg: Config): void {
+export function registerBuilderTools(server: McpServer, engine: EngineClient, qrs: QrsClient, cfg: Config, writes: KeyedLock): void {
   server.registerTool(
     "validate_sheet",
     {
@@ -97,7 +99,7 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async ({ appId, title, description, columns, rows }) => {
+    writes.byApp(async ({ appId, title, description, columns, rows }) => {
       const app = await engine.app(appId);
       const sheet = await app.createObject({
         qInfo: { qType: "sheet" },
@@ -108,9 +110,9 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
         qChildListDef: { qData: { title: "/title" } },
       });
       const sheetId = (await sheet.getLayout()).qInfo.qId;
-      await app.doSave();
+      await saveApp(app);
       return text({ sheetId, title, grid: { columns: columns ?? 24, rows: rows ?? 12 } });
-    },
+    }),
   );
 
   server.registerTool(
@@ -135,7 +137,7 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
-    async ({ appId, sheetId, visualization, title, dimensions, measures, options, position }) => {
+    writes.byApp(async ({ appId, sheetId, visualization, title, dimensions, measures, options, position }) => {
       const app = await engine.app(appId);
       const prepared = await prepareDefinition(app, "create", visualization, title, dimensions ?? [], measures ?? [], options);
 
@@ -145,7 +147,7 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
       const props = await sheet.getProperties();
       const { cell, grid } = placeCell(props, objectId, visualization, position);
       await sheet.setProperties(props);
-      await app.doSave();
+      await saveApp(app);
 
       const known = await knownVisualizations(qrs, cfg.host);
       const validation = await validateObject(app, objectId, known, undefined, { handle });
@@ -154,7 +156,7 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
         objectId, sheetId, cell, validation, placementFindings: placement,
         ...(prepared.notes.length ? { notes: prepared.notes } : {}),
       }));
-    },
+    }),
   );
 
   server.registerTool(
@@ -176,7 +178,7 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
       },
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
-    async ({ appId, objectId, title, dimensions, measures, options }) => {
+    writes.byApp(async ({ appId, objectId, title, dimensions, measures, options }) => {
       if (title === undefined && !dimensions && !measures && !options) {
         throw new ToolError("INVALID_INPUT", "Nothing to update: pass at least one of title, dimensions, measures, options");
       }
@@ -199,8 +201,7 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
         }
       };
       const dims: ReadonlyArray<DimInput> = dimensions ?? await carry("dimensions", async () => {
-        if (!isPane) return current.qListObjectDef ? specsFromProps(current).dimensions
-          : (current.qHyperCubeDef?.qDimensions ?? []).map((d, i) => dimSpecFromDef(d, `dimension ${i}`));
+        if (!isPane) return current.qListObjectDef ? specsFromProps(current).dimensions : cubeDimSpecs(current.qHyperCubeDef ?? {});
         const kids = await obj.getChildInfos();
         return Promise.all(kids.map(async (c, i) =>
           dimSpecFromDef((await (await app.getObject(c.qId)).getProperties()).qListObjectDef, `filterpane listbox ${i}`)));
@@ -225,14 +226,14 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
         for (const c of await obj.getChildInfos()) await obj.destroyChild(c.qId);
         for (const lb of buildFilterpaneChildren(prepared.dims)) await obj.createChild(lb);
       }
-      await app.doSave();
+      await saveApp(app);
 
       const validation = await validateObject(app, objectId, await knownVisualizations(qrs, cfg.host), undefined, { handle: obj });
       return text(redactSecrets({
         objectId, visualization: viz, validation,
         ...(prepared.notes.length ? { notes: prepared.notes } : {}),
       }));
-    },
+    }),
   );
 
   server.registerTool(
@@ -249,7 +250,7 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
       },
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
-    async ({ appId, sheetId, objectId, position }) => {
+    writes.byApp(async ({ appId, sheetId, objectId, position }) => {
       const app = await engine.app(appId);
       const sheet = await app.getObject(sheetId);
       await requireChildOf(sheet, sheetId, objectId);
@@ -259,12 +260,12 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
         ?? await (async () => { const p = await (await app.getObject(objectId)).getProperties(); return p.visualization ?? p.qInfo?.qType; })();
       const { cell, grid } = placeCell(props, objectId, viz, position);
       await sheet.setProperties(props);
-      await app.doSave();
+      await saveApp(app);
       return text({
         objectId, sheetId, previous: previous ? cellBox(previous) : null, cell, grid,
         placementFindings: await placementFor(sheet, props, grid, objectId),
       });
-    },
+    }),
   );
 
   server.registerTool(
@@ -280,7 +281,7 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
       },
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
-    async ({ appId, sheetId, objectId }) => {
+    writes.byApp(async ({ appId, sheetId, objectId }) => {
       const app = await engine.app(appId);
       const sheet = await app.getObject(sheetId);
       await requireChildOf(sheet, sheetId, objectId);
@@ -291,12 +292,12 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
       const props = await sheet.getProperties();
       props.cells = (props.cells ?? []).filter((c) => c.name !== objectId);
       await sheet.setProperties(props);
-      await app.doSave();
+      await saveApp(app);
       const remaining = (await sheet.getChildInfos()).map((c) => c.qId);
       return text({
         deleted: objectId, sheetId, remainingObjects: remaining.length,
         placementFindings: checkCellPlacement(props.cells.map(cellBox), remaining, props.columns ?? 24, props.rows ?? 12),
       });
-    },
+    }),
   );
 }

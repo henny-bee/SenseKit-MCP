@@ -1,13 +1,13 @@
 # Configuration
 
-qlik-sense-mcp is configured only through environment variables. They all start with `QSEOW_` because they name the Qlik product (Qlik Sense Enterprise on Windows, QSEoW). They are read once, at startup, in `src/config.ts`.
+SenseKit-MCP is configured only through environment variables. They all start with `QSEOW_` because they name the Qlik product (Qlik Sense Enterprise on Windows, QSEoW). They are read once, at startup, in `src/config.ts`.
 
 ## Where values come from
 
 1. The process environment. In practice this is the `env` block of your MCP client config (Claude Desktop, Claude Code, and so on).
 2. A `.env` file, used only for variables that are **not** already set in the environment. The server reads the file named by `QSEOW_ENV_PATH` if that is set, otherwise `./.env` in the working directory if one exists, otherwise nothing.
 
-The `.env` format is simple: `KEY=VALUE` lines, an optional `export ` prefix, `#` comment lines, and optional single or double quotes around the value. An empty value counts as unset, so the default applies.
+The `.env` format is simple: `KEY=VALUE` lines, an optional `export ` prefix, `#` comment lines, and optional single or double quotes around the value. An empty value counts as unset, so the default applies. Comments must be on a line of their own: everything after `=` is the value, so a trailing `# comment` or trailing spaces become part of it (`QSEOW_HOST=sense.example.com  # host` sets the host to `sense.example.com  # host`).
 
 MCP clients choose the working directory of the server process, so a relative `./.env` may not be found. Either put the variables in the client's `env` block or set `QSEOW_ENV_PATH` to an absolute path.
 
@@ -34,8 +34,8 @@ See [authentication.md](authentication.md) for how the three modes work and whic
 | Variable | Default | Meaning |
 |---|---|---|
 | `QSEOW_AUTH_MODE` | `certificate` | `certificate`, `jwt` or `windows`. Any other value stops the server at startup. |
-| `QSEOW_CERT_PATH` | none | Path to the QMC-exported client certificate (PEM). **Required in certificate mode.** In jwt mode it is optional; if it is set together with the key, the certificate-only session tools are registered too. |
-| `QSEOW_CERT_KEY_PATH` | none | Path to the client certificate's private key (PEM). Always used together with `QSEOW_CERT_PATH`: in jwt mode, if only one of the two is set, neither is loaded. |
+| `QSEOW_CERT_PATH` | none | Path to the QMC-exported client certificate (PEM). **Required in certificate mode.** In jwt and windows mode it is optional; if it is set together with the key, both files are loaded (so they must exist) and the certificate-only session tools are registered too. |
+| `QSEOW_CERT_KEY_PATH` | none | Path to the client certificate's private key (PEM). Always used together with `QSEOW_CERT_PATH`: outside certificate mode, if only one of the two is set, neither is loaded. |
 | `QSEOW_CERT_PASSPHRASE` | none | Passphrase for the private key, if it has one. |
 | `QSEOW_ROOT_CERT_PATH` | none | Path to the CA (PEM) that signed the Qlik server certificates, usually the Qlik root CA. Loaded in every auth mode, with or without client-certificate files, and trusted on every TLS connection. See [TLS trust](#tls-trust). |
 | `QSEOW_CERT_USER_DIRECTORY` | `INTERNAL` | User directory sent in the `X-Qlik-User` header on certificate-authenticated calls. |

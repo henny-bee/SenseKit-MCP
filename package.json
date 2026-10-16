@@ -1,12 +1,12 @@
 {
-  "name": "qlik-sense-mcp",
+  "name": "sensekit-mcp",
   "version": "1.0.0",
-  "mcpName": "io.github.OWNER/qlik-sense-mcp",
+  "mcpName": "io.github.henny-bee/sensekit-mcp",
   "description": "MCP server for Qlik Sense Enterprise on Windows (client-managed): Repository, Engine/QIX and Proxy APIs as Model Context Protocol tools for analysts, developers and admins, with a validated sheet and chart builder.",
   "license": "Apache-2.0",
   "type": "module",
   "bin": {
-    "qlik-sense-mcp": "dist/index.js"
+    "sensekit-mcp": "dist/index.js"
   },
   "main": "dist/index.js",
   "scripts": {
@@ -59,11 +59,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/OWNER/qlik-sense-mcp.git"
+    "url": "git+https://github.com/henny-bee/SenseKit-MCP.git"
   },
-  "author": "XL",
-  "homepage": "https://github.com/OWNER/qlik-sense-mcp#readme",
+  "author": "H-Bee",
+  "homepage": "https://github.com/henny-bee/SenseKit-MCP#readme",
   "bugs": {
-    "url": "https://github.com/OWNER/qlik-sense-mcp/issues"
+    "url": "https://github.com/henny-bee/SenseKit-MCP/issues"
   }
 }

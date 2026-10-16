@@ -72,6 +72,14 @@ export function finishDim<T extends { qDef: NxInlineDimensionDef; qLibraryId?: s
   return entry;
 }
 
+/** "Include null values" unticked. Hypercube dimensions only (a listbox has
+ *  no null row). Written only when the caller turned nulls off, so string
+ *  inputs keep their render-verified definitions byte for byte. */
+export function finishNulls<T extends { qDef: NxInlineDimensionDef; qNullSuppression?: boolean }>(entry: T, d: DimSpec): T {
+  if (d.includeNulls === false) entry.qNullSuppression = true;
+  return entry;
+}
+
 /** Same for a measure entry. The number format is applied to library-linked
  *  measures too: the client offers a per-chart format override on master
  *  measures, stored exactly here; the label it does not. */
@@ -144,6 +152,7 @@ export function applyOptions(props: GenericObjectProperties, viz: string, o: Viz
     m0.qDef.autoSort = false;
     for (const d of cube.qDimensions) d.qDef.autoSort = false;
   }
+  if (o.includeZeros !== undefined && props.qHyperCubeDef) props.qHyperCubeDef.qSuppressZero = !o.includeZeros;
   return props;
 }
 
@@ -158,8 +167,8 @@ export function buildCube(
   const { viz, base, dims, meas, applied, measureColors } = input;
   const isNebula = kind.nebula === true;
   const cube: HyperCubeDef = {
-    qDimensions: dims.map((d, i) => finishDim(
-      isNebula ? nebulaDim(fieldDef(d), `d${i + 1}`) : { qDef: { qFieldDefs: [fieldDef(d)] }, qNullSuppression: false }, d)),
+    qDimensions: dims.map((d, i) => finishNulls(finishDim(
+      isNebula ? nebulaDim(fieldDef(d), `d${i + 1}`) : { qDef: { qFieldDefs: [fieldDef(d)] }, qNullSuppression: false }, d), d)),
     qMeasures: meas.map((m, i) => finishMeasure(
       isNebula ? nebulaMeasure(m.expression ?? "", `m${i + 1}`) : { qDef: { qDef: withEq(m.expression ?? "") } }, m)),
     qInitialDataFetch: [{ qLeft: 0, qTop: 0, qWidth: Math.max(1, dims.length + meas.length), qHeight: 50 }],
@@ -188,7 +197,9 @@ export function buildCube(
     // client-breaks inconsistency the gate exists for.
     cube.qMode = "P";
     cube.qAlwaysFullyExpanded = true;
-    cube.qNoOfLeftDims = dims.length;
+    // Leading dimensions are rows; trailing pivotColumn ones go across the
+    // top (resolveVizOptions has already checked the order).
+    cube.qNoOfLeftDims = dims.length - dims.filter((d) => d.pivotColumn === true).length;
     cube.qInitialDataFetch = [{ qLeft: 0, qTop: 0, qWidth: 10, qHeight: 50 }];
   }
   return applyOptions({ ...base, qHyperCubeDef: cube }, viz, applied);

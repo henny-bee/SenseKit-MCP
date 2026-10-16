@@ -1,0 +1,12 @@
+{
+  "qInfo": { "qId": "fixture-bar-1", "qType": "barchart" },
+  "visualization": "barchart",
+  "title": { "qStringExpression": { "qExpr": "='Revenue by ' & GetCurrentSelections()" } },
+  "qHyperCubeDef": {
+    "qDimensions": [{ "qDef": { "qFieldDefs": ["Region"], "qFieldLabels": ["Region"] } }],
+    "qMeasures": [
+      { "qDef": { "qDef": "Sum({<Scenario={'Actual'}>} Amount)", "qLabel": "Actual Revenue" } },
+      { "qDef": { "qDef": "Sum({<Scenario={'Budget'}>} Amount)", "qLabel": "Budget Revenue" } }
+    ]
+  }
+}

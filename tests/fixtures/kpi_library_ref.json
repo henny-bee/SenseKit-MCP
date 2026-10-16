@@ -1,0 +1,10 @@
+{
+  "qInfo": { "qId": "fixture-kpi-1", "qType": "kpi" },
+  "visualization": "kpi",
+  "title": "Total Revenue KPI",
+  "qHyperCubeDef": {
+    "qDimensions": [],
+    "qMeasures": [{ "qLibraryId": "fixture-measure-1", "qDef": {} }],
+    "qInitialDataFetch": [{ "qLeft": 0, "qTop": 0, "qWidth": 1, "qHeight": 1 }]
+  }
+}

@@ -1,0 +1,25 @@
+[0.1s] STEP 1 — create the app and load data
+[2.5s] ✓ app created and reloaded: 015ac4f4-7184-4aa1-b8bf-ef61bb62cd7c
+[2.5s] STEP 2 — build "Regional Sales" (4 visualizations)
+[3.8s] ✓ kpi        "Total Sales": gate=pass
+[4.7s] ✓ barchart   "Sales by Region": gate=pass
+[5.6s] ✓ linechart  "Sales by Month": gate=pass
+[6.5s] ✓ table      "Detail": gate=pass
+[6.5s] STEP 3 — the gate refuses what an API wrapper would happily save
+[6.7s] ✓ misspelled dimension field is refused pre-create: add_sheet_object: refusing to create: dimension field(s) not in the data model: Regoin
+[6.7s] ✓ impossible chart shape is refused pre-create: add_sheet_object: refusing to create: piechart needs 1-1 dimensions, got 2
+[7.5s] ✓ misspelled measure field is caught by the gate: measure 0: unknown field(s): Salse — the engine returns null/0 for these rather than erroring
+[7.5s]   ↑ Qlik itself would render this as 0 with no error — that is the trap
+[7.5s] STEP 4 — validate the whole sheet
+[8.6s] ✓ sheet verdict is FAIL while the bad object exists: 5 objects
+[15.3s] ✓ clean sheet verdict is PASS: 4 objects, 0 findings
+[15.3s] ✓ no placement problems
+[15.3s] STEP 5 — the numbers carry their own context
+[15.5s] ✓ value correct: 925
+[15.5s] ✓ selection context attached: 0 active selections (unfiltered)
+[15.6s] ✓ unknown field warned, not silently zeroed: unknown field(s): Salse — the engine returns null/0 for these rather than erroring
+[15.9s] ✓ additive measure cross-checks consistent: total 925 = sum of 2 groups 925
+[16.2s] ✓ non-additive measure flagged: total 2 vs sum-of-groups 4 — sum-of-parts would mislead
+
+[16.2s] BUILDER TRACE COMPLETE — all assertions passed
+app left on the site for visual inspection: MCP Builder Demo (dcf7a589-58cd-4da7-9376-e2a52ae5d663)

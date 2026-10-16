@@ -1,0 +1,171 @@
+{
+  "manifest_version": "0.2",
+  "name": "qlik-sense-mcp",
+  "display_name": "Qlik Sense Enterprise on Windows (qlik-sense-mcp)",
+  "version": "0.0.0",
+  "description": "Connect an AI agent to a Qlik Sense Enterprise on Windows site to inspect, troubleshoot, govern and build apps.",
+  "long_description": "An MCP server for Qlik Sense Enterprise on Windows (client-managed). Exposes the Repository (QRS), Engine (QIX) and Proxy APIs as tools: data-model and expression inspection, master items, lineage and load scripts, reload forensics, engine health, security-rule audit, and a sheet and chart builder that checks each object with a render-validation gate. Read-only unless you explicitly allow write operations. Independent project; not affiliated with or endorsed by QlikTech International AB.",
+  "author": {
+    "name": "XL",
+    "url": "https://github.com/OWNER"
+  },
+  "homepage": "https://github.com/OWNER/qlik-sense-mcp",
+  "documentation": "https://github.com/OWNER/qlik-sense-mcp#readme",
+  "support": "https://github.com/OWNER/qlik-sense-mcp/issues",
+  "license": "Apache-2.0",
+  "keywords": [
+    "qlik",
+    "qlik-sense",
+    "qseow",
+    "business-intelligence",
+    "qrs",
+    "qix"
+  ],
+  "server": {
+    "type": "node",
+    "entry_point": "server/index.js",
+    "mcp_config": {
+      "command": "node",
+      "args": [
+        "${__dirname}/server/index.js"
+      ],
+      "env": {
+        "QSEOW_HOST": "${user_config.host}",
+        "QSEOW_QRS_PORT": "${user_config.qrs_port}",
+        "QSEOW_ENGINE_PORT": "${user_config.engine_port}",
+        "QSEOW_AUTH_MODE": "${user_config.auth_mode}",
+        "QSEOW_CERT_PATH": "${user_config.cert_path}",
+        "QSEOW_CERT_KEY_PATH": "${user_config.cert_key_path}",
+        "QSEOW_ROOT_CERT_PATH": "${user_config.root_cert_path}",
+        "QSEOW_CERT_USER_DIRECTORY": "${user_config.cert_user_directory}",
+        "QSEOW_CERT_USER_ID": "${user_config.cert_user_id}",
+        "QSEOW_TOOL_GROUPS": "${user_config.tool_groups}",
+        "QSEOW_ALLOW_MUTATIONS": "${user_config.allow_mutations}",
+        "QSEOW_TLS_VERIFY": "${user_config.tls_verify}",
+        "QSEOW_JWT": "${user_config.jwt}",
+        "QSEOW_USERNAME": "${user_config.windows_username}",
+        "QSEOW_PASSWORD": "${user_config.windows_password}",
+        "QSEOW_VP_PREFIX": "${user_config.vp_prefix}"
+      }
+    }
+  },
+  "user_config": {
+    "host": {
+      "type": "string",
+      "title": "Qlik Sense hostname",
+      "description": "Hostname of the QSEoW node, no scheme (e.g. sense.example.com)",
+      "required": true
+    },
+    "auth_mode": {
+      "type": "string",
+      "title": "Authentication mode",
+      "description": "'certificate' (service identity, full access, simplest on a desktop), 'jwt' (acts as a real user and inherits their section access and security rules) or 'windows' (your Windows account through the hub's login page; no certificates needed).",
+      "default": "certificate",
+      "required": true
+    },
+    "cert_path": {
+      "type": "file",
+      "title": "Client certificate (client.pem)",
+      "description": "Required for certificate mode. QMC > Certificates > Export, choose PEM. Also enables the Proxy-API session tools in JWT mode.",
+      "required": false
+    },
+    "cert_key_path": {
+      "type": "file",
+      "title": "Client certificate key (client_key.pem)",
+      "description": "Required for certificate mode. The private key exported alongside the client certificate.",
+      "required": false
+    },
+    "root_cert_path": {
+      "type": "file",
+      "title": "Root certificate (root.pem) — optional",
+      "description": "Qlik root CA. Provide it to keep TLS verification on.",
+      "required": false
+    },
+    "cert_user_directory": {
+      "type": "string",
+      "title": "Identity: user directory",
+      "description": "Directory asserted on QRS calls in certificate mode.",
+      "default": "INTERNAL",
+      "required": false
+    },
+    "cert_user_id": {
+      "type": "string",
+      "title": "Identity: user id",
+      "description": "Prefer a dedicated least-privilege account over sa_repository where you can.",
+      "default": "sa_repository",
+      "required": false
+    },
+    "jwt": {
+      "type": "string",
+      "title": "JWT (jwt mode only)",
+      "description": "A signed token for your JWT virtual proxy. Note tokens expire — for a desktop install use a long-lived token, or prefer certificate mode.",
+      "sensitive": true,
+      "required": false
+    },
+    "windows_username": {
+      "type": "string",
+      "title": "Windows account (windows mode only)",
+      "description": "DOMAIN\\user, as typed on the hub's login page.",
+      "required": false
+    },
+    "windows_password": {
+      "type": "string",
+      "title": "Windows password (windows mode only)",
+      "description": "A rejected login is not retried until restart, so a wrong password cannot lock the account.",
+      "sensitive": true,
+      "required": false
+    },
+    "vp_prefix": {
+      "type": "string",
+      "title": "Virtual proxy prefix (optional)",
+      "description": "Prefix of the virtual proxy, as in https://host/<prefix>/. Empty means 'jwt' in jwt mode and the default proxy in windows mode.",
+      "required": false
+    },
+    "qrs_port": {
+      "type": "number",
+      "title": "Repository (QRS) port",
+      "default": 4242,
+      "required": false,
+      "description": "Repository Service port. Default 4242."
+    },
+    "engine_port": {
+      "type": "number",
+      "title": "Engine (QIX) port",
+      "default": 4747,
+      "required": false,
+      "description": "Engine/QIX WebSocket port. Default 4747."
+    },
+    "tool_groups": {
+      "type": "string",
+      "title": "Tool groups to expose",
+      "description": "Comma-separated: analyst, developer, admin. Expose only what you need.",
+      "default": "analyst,developer,admin",
+      "required": false
+    },
+    "allow_mutations": {
+      "type": "boolean",
+      "title": "Allow write operations",
+      "description": "OFF means writing tools are never registered — the tool list is genuinely read-only. Turn on only deliberately.",
+      "default": false,
+      "required": false
+    },
+    "tls_verify": {
+      "type": "boolean",
+      "title": "Verify TLS certificates",
+      "description": "Leave on in production. Turn off only for a self-signed lab site.",
+      "default": true,
+      "required": false
+    }
+  },
+  "compatibility": {
+    "claude_desktop": ">=0.10.0",
+    "platforms": [
+      "darwin",
+      "win32",
+      "linux"
+    ],
+    "runtimes": {
+      "node": ">=20.0.0"
+    }
+  }
+}

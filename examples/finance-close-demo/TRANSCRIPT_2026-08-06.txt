@@ -1,0 +1,23 @@
+[0.1s] STEP 1 — find the apps
+[0.4s]   dashboard=7abf23b4-c2b0-4484-a854-8f5bd2b7a18a  datamart=a05002d7-3bbb-4746-ae25-f312e250aa79
+[0.4s] STEP 2 — governed KPI on the dashboard
+[0.9s] ✓ dashboard KPI (planted): 655728164.79
+[0.9s]   governed expression: Sum({<Scenario={'Actual'}, Period={'FY2026-Q1'}>} Amount)
+[0.9s] STEP 3 — same expression on the datamart
+[1.2s] ✓ datamart truth: 605728164.79
+[1.2s]   mismatch confirmed: identical definition, different data
+[1.2s] STEP 4 — isolate by DocType on both apps
+[1.5s]   dashboard: [["Normalized",555728164.79],["Adjustment",100000000]]
+[1.5s]   datamart:  [["Normalized",555728164.79],["Adjustment",50000000]]
+[1.5s] ✓ delta isolated to Adjustment slice: 50000000
+[1.5s] STEP 5 — where does this KPI live?
+[2.1s]   KPI object bffbd56e-3656-4393-bc96-157d764ff28a on sheet "Close Review"; master measure "Revenue Q1 (Actual)"
+[2.1s] STEP 6 — lineage (the app -> source hop)
+[2.2s]   sources: qvd — single certified QVD, no side feeds
+[2.2s] STEP 7 — the script
+[2.3s]   ✓ found the planted block: CONCATENATE re-load of DocType='Adjustment'
+[2.3s]   ROOT CAUSE: the adjustment batch is loaded twice.
+[2.3s] STEP 8 — fix live and tie out
+[4.2s] ✓ dashboard KPI after fix: 605728164.79
+[4.2s] TIE-OUT COMPLETE — total tool-call time 4.2s
+note: box is now in the CLEAN state; run plant.mjs to re-arm the demo

@@ -1,0 +1,10 @@
+{
+  "qInfo": { "qId": "fixture-sheet-1", "qType": "sheet" },
+  "qMetaDef": { "title": "Close Review", "description": "Month-end review sheet" },
+  "rows": 24, "columns": 24,
+  "cells": [
+    { "name": "fixture-kpi-1", "type": "kpi", "col": 0, "row": 0, "colspan": 8, "rowspan": 6 },
+    { "name": "fixture-bar-1", "type": "barchart", "col": 8, "row": 0, "colspan": 16, "rowspan": 12 }
+  ],
+  "qChildListDef": { "qData": { "title": "/title" } }
+}

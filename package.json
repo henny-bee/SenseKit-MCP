@@ -1,0 +1,69 @@
+{
+  "name": "qlik-sense-mcp",
+  "version": "1.0.0",
+  "mcpName": "io.github.OWNER/qlik-sense-mcp",
+  "description": "MCP server for Qlik Sense Enterprise on Windows (client-managed): Repository, Engine/QIX and Proxy APIs as Model Context Protocol tools for analysts, developers and admins, with a validated sheet and chart builder.",
+  "license": "Apache-2.0",
+  "type": "module",
+  "bin": {
+    "qlik-sense-mcp": "dist/index.js"
+  },
+  "main": "dist/index.js",
+  "scripts": {
+    "clean": "node -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\"",
+    "build": "npm run clean && tsc",
+    "dev": "tsx src/index.ts",
+    "smoke": "node scripts/smoke.mjs",
+    "prepare": "npm run build",
+    "typecheck": "tsc --noEmit",
+    "test": "npm run build && node scripts/run-tests.mjs",
+    "test:unit": "npm run build && node scripts/run-tests.mjs unit",
+    "test:tools": "npm run build && node scripts/run-tests.mjs tools",
+    "coverage": "npm run build && node scripts/run-tests.mjs --coverage",
+    "docs:tools": "npm run build && node scripts/gen-tools-doc.mjs",
+    "docs:check": "node scripts/gen-tools-doc.mjs --check",
+    "bundle": "node mcpb/build.mjs"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "enigma.js": "^2.14.0",
+    "ws": "^8.18.0",
+    "zod": "^3.24.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.17.0",
+    "@types/ws": "^8.5.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  },
+  "keywords": [
+    "qlik",
+    "qlik-sense",
+    "qseow",
+    "qlik-sense-enterprise",
+    "mcp",
+    "model-context-protocol",
+    "qrs",
+    "qix",
+    "enigma"
+  ],
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "NOTICE",
+    ".env.example"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OWNER/qlik-sense-mcp.git"
+  },
+  "author": "XL",
+  "homepage": "https://github.com/OWNER/qlik-sense-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/OWNER/qlik-sense-mcp/issues"
+  }
+}

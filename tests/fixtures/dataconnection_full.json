@@ -1,0 +1,11 @@
+{
+  "id": "fixture-dc-1",
+  "name": "WarehouseDB",
+  "connectionstring": "Provider=SQLOLEDB;Data Source=warehouse.internal;User ID=svc_qlik;PWD=SuperSecret123!;Initial Catalog=finance",
+  "type": "OLEDB",
+  "username": "svc_qlik",
+  "password": "AlsoVerySecret456",
+  "passphrase": "",
+  "owner": { "userId": "svc_qlik", "userDirectory": "INTERNAL" },
+  "tags": [{ "name": "prod" }]
+}

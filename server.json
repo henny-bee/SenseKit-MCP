@@ -1,0 +1,167 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.OWNER/qlik-sense-mcp",
+  "description": "MCP server for Qlik Sense Enterprise on Windows: inspect, troubleshoot, govern and build apps.",
+  "repository": {
+    "url": "https://github.com/OWNER/qlik-sense-mcp",
+    "source": "github"
+  },
+  "version": "1.0.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "qlik-sense-mcp",
+      "version": "1.0.0",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "QSEOW_HOST",
+          "description": "Hostname of the Qlik Sense node, no scheme (e.g. sense.example.com).",
+          "isRequired": true,
+          "format": "string"
+        },
+        {
+          "name": "QSEOW_AUTH_MODE",
+          "description": "'certificate' (service identity via QMC-exported certs), 'jwt' (per-user, through a JWT virtual proxy) or 'windows' (a Windows account through the proxy's login form, no certificates). Defaults to certificate.",
+          "isRequired": false,
+          "format": "string",
+          "default": "certificate"
+        },
+        {
+          "name": "QSEOW_CERT_PATH",
+          "description": "Path to the QMC-exported client certificate (PEM). Required in certificate mode; also enables the Proxy-API session tools in jwt mode.",
+          "isRequired": false,
+          "format": "filepath"
+        },
+        {
+          "name": "QSEOW_CERT_KEY_PATH",
+          "description": "Path to the client certificate private key (PEM).",
+          "isRequired": false,
+          "format": "filepath"
+        },
+        {
+          "name": "QSEOW_ROOT_CERT_PATH",
+          "description": "Path to the Qlik root CA (PEM). Supply it to keep TLS verification on.",
+          "isRequired": false,
+          "format": "filepath"
+        },
+        {
+          "name": "QSEOW_CERT_PASSPHRASE",
+          "description": "Passphrase for the client certificate key, if it has one.",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "QSEOW_CERT_USER_DIRECTORY",
+          "description": "User directory asserted on QRS and engine calls in certificate mode.",
+          "isRequired": false,
+          "format": "string",
+          "default": "INTERNAL"
+        },
+        {
+          "name": "QSEOW_CERT_USER_ID",
+          "description": "User id asserted in certificate mode. Prefer a dedicated least-privilege account.",
+          "isRequired": false,
+          "format": "string",
+          "default": "sa_repository"
+        },
+        {
+          "name": "QSEOW_JWT",
+          "description": "Signed JWT for the virtual proxy (jwt mode only).",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "QSEOW_JWT_PATH",
+          "description": "Path to a file containing the JWT (jwt mode; used when QSEOW_JWT is empty).",
+          "isRequired": false,
+          "format": "filepath"
+        },
+        {
+          "name": "QSEOW_VP_PREFIX",
+          "description": "Virtual proxy prefix. Empty means 'jwt' in jwt mode and the unprefixed default proxy in windows mode.",
+          "isRequired": false,
+          "format": "string"
+        },
+        {
+          "name": "QSEOW_USERNAME",
+          "description": "Windows account as DOMAIN\\user (windows mode only).",
+          "isRequired": false,
+          "format": "string"
+        },
+        {
+          "name": "QSEOW_PASSWORD",
+          "description": "Password of the Windows account (windows mode only).",
+          "isRequired": false,
+          "format": "string",
+          "isSecret": true
+        },
+        {
+          "name": "QSEOW_PASSWORD_PATH",
+          "description": "Path to a file containing the password (windows mode; used when QSEOW_PASSWORD is empty).",
+          "isRequired": false,
+          "format": "filepath"
+        },
+        {
+          "name": "QSEOW_ALLOW_MUTATIONS",
+          "description": "Set true to register write tools. Default false: mutating tools are never registered, so the tool list is genuinely read-only.",
+          "isRequired": false,
+          "format": "string",
+          "default": "false"
+        },
+        {
+          "name": "QSEOW_TOOL_GROUPS",
+          "description": "Comma-separated personas to expose: analyst, developer, admin.",
+          "isRequired": false,
+          "format": "string",
+          "default": "analyst,developer,admin"
+        },
+        {
+          "name": "QSEOW_TLS_VERIFY",
+          "description": "Set false only for self-signed lab certificates. Leave on in production.",
+          "isRequired": false,
+          "format": "string",
+          "default": "true"
+        },
+        {
+          "name": "QSEOW_QRS_PORT",
+          "description": "Repository Service (QRS) port, certificate mode.",
+          "isRequired": false,
+          "format": "number",
+          "default": "4242"
+        },
+        {
+          "name": "QSEOW_ENGINE_PORT",
+          "description": "Engine (QIX) WebSocket port, certificate mode.",
+          "isRequired": false,
+          "format": "number",
+          "default": "4747"
+        },
+        {
+          "name": "QSEOW_PROXY_PORT",
+          "description": "Proxy port for the JWT virtual proxy (jwt mode).",
+          "isRequired": false,
+          "format": "number",
+          "default": "443"
+        },
+        {
+          "name": "QSEOW_QPS_PORT",
+          "description": "Proxy Service REST API port (session tools; certificate auth only).",
+          "isRequired": false,
+          "format": "number",
+          "default": "4243"
+        },
+        {
+          "name": "QSEOW_ENV_PATH",
+          "description": "Absolute path to a .env file to read. Variables already set in the environment win.",
+          "isRequired": false,
+          "format": "filepath"
+        }
+      ]
+    }
+  ]
+}

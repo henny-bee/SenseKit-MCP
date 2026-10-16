@@ -1,0 +1,19 @@
+{
+  "id": "00000000-0000-0000-0000-000000000000",
+  "prefix": "oidc",
+  "description": "Synthetic OIDC virtual proxy — redaction fixture, no real values",
+  "authenticationMethod": 5,
+  "anonymousAccessMode": 0,
+  "headerAuthenticationHeaderName": "",
+  "oidcClientId": "11111111-2222-3333-4444-555555555555",
+  "oidcClientSecret": "SYNTHETIC~not~a~real~client~secret",
+  "oidcAttributeClientId": "aud",
+  "oidcScope": "openid profile email",
+  "oidcConfigurationEndpointUri": "https://login.example.invalid/v2.0/.well-known/openid-configuration",
+  "samlClientSecret": "SYNTHETIC~saml~counterpart",
+  "jwtPublicKeyCertificate": "-----BEGIN CERTIFICATE-----\nSYNTHETICPUBLICCERT\n-----END CERTIFICATE-----\n",
+  "sessionCookieHeaderName": "X-Qlik-Session-oidc",
+  "hasSecureAttributeHttps": true,
+  "sessionInactivityTimeout": 30,
+  "websocketCrossOriginWhiteList": ["localhost"]
+}

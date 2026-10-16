@@ -6,7 +6,7 @@ Please do **not** open a public issue for anything that could be exploited.
 
 Report it privately instead, by either:
 
-- GitHub private vulnerability reporting: **Security → Report a vulnerability** on https://github.com/henny-bee/SenseKit-MCP, or
+- GitHub private vulnerability reporting: **Security → Report a vulnerability** on https://github.com/henny-bee/SenseKit-MCP.
 
 Include the version, the auth mode, the tool involved, and the smallest reproduction you can share. Do not send real hostnames, certificates, tokens or connection strings; synthetic values are enough.
 

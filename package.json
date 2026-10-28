@@ -65,5 +65,8 @@
   "homepage": "https://github.com/henny-bee/SenseKit-MCP#readme",
   "bugs": {
     "url": "https://github.com/henny-bee/SenseKit-MCP/issues"
+  },
+  "optionalDependencies": {
+    "playwright-core": "^1.64.1"
   }
 }

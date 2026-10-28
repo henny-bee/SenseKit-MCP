@@ -43,6 +43,8 @@ export interface Config {
   tlsVerify: boolean;
   toolGroups: Set<ToolGroup>;
   allowMutations: boolean;
+  /** render_sheet: a Playwright channel (msedge, chrome) or a browser executable path. */
+  browser: string;
 }
 
 function env(name: string, fallback?: string): string | undefined {
@@ -129,5 +131,6 @@ export function loadConfig(): Config {
     tlsVerify: env("QSEOW_TLS_VERIFY", "true") !== "false",
     toolGroups: new Set(groups),
     allowMutations: env("QSEOW_ALLOW_MUTATIONS", "false") === "true",
+    browser: env("QSEOW_BROWSER", process.platform === "win32" ? "msedge" : "chrome")!,
   };
 }

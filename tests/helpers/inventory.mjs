@@ -47,6 +47,7 @@ export const TOOLS = {
   update_sheet_object: { group: "developer", mutating: true, destructive: true },
   move_sheet_object: { group: "developer", mutating: true, destructive: false },
   delete_sheet_object: { group: "developer", mutating: true, destructive: true },
+  render_sheet: { group: "developer", proxy: true },
   create_master_measure: { group: "developer", mutating: true, destructive: false },
   create_master_dimension: { group: "developer", mutating: true, destructive: false },
   delete_master_item: { group: "developer", mutating: true, destructive: true },
@@ -60,11 +61,13 @@ export const ERROR_CODES = [
 
 export const GROUPS = ["analyst", "developer", "admin"];
 
-export function expectedTools({ groups = GROUPS, allowMutations = true, cert = false } = {}) {
+// proxy = needs the proxy session (windows/jwt auth), which certificate mode has none of.
+export function expectedTools({ groups = GROUPS, allowMutations = true, cert = false, proxy = false } = {}) {
   return Object.entries(TOOLS)
     .filter(([, t]) => groups.includes(t.group))
     .filter(([, t]) => allowMutations || !t.mutating)
     .filter(([, t]) => cert || !t.cert)
+    .filter(([, t]) => proxy || !t.proxy)
     .map(([name]) => name)
     .sort();
 }

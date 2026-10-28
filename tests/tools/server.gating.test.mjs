@@ -28,6 +28,15 @@ describe("tool gating: groups × mutations × certificate", () => {
     }
   }
 
+  test("a proxy session (windows/jwt auth) adds render_sheet to the developer group", async () => {
+    const h = await startServer({ groups: ["developer"], authMode: "windows", deps: { session: {} } });
+    try {
+      assert.deepEqual(await h.toolNames(), expectedTools({ groups: ["developer"], proxy: true }));
+    } finally {
+      await h.close();
+    }
+  });
+
   test("no groups configured -> no tools", async () => {
     const h = await startServer({ groups: [] });
     try {
@@ -84,7 +93,7 @@ describe("tool gating: groups × mutations × certificate", () => {
   });
 
   test("the inventory covers every tool a fully-enabled server lists", async () => {
-    const h = await startServer({ allowMutations: true, cert: true });
+    const h = await startServer({ allowMutations: true, cert: true, deps: { session: {} } });
     try {
       assert.deepEqual(await h.toolNames(), Object.keys(TOOLS).sort());
     } finally {
@@ -96,7 +105,7 @@ describe("tool gating: groups × mutations × certificate", () => {
 describe("tool annotations and metadata", () => {
   let h, tools;
   before(async () => {
-    h = await startServer({ allowMutations: true, cert: true });
+    h = await startServer({ allowMutations: true, cert: true, deps: { session: {} } });
     tools = await h.tools();
   });
   after(() => h.close());

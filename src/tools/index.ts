@@ -10,6 +10,8 @@ import { registerInspectorTools } from "./inspector.js";
 import { registerOpsTools } from "./ops.js";
 import { registerBuilderTools } from "./builder.js";
 import { registerMasterTools } from "./master.js";
+import { registerRenderTools } from "./render.js";
+import { playwrightInstalled } from "../clients/browser.js";
 import { KeyedLock } from "../core/lock.js";
 
 export interface ToolDeps {
@@ -34,6 +36,8 @@ export function registerTools(server: McpServer, { cfg, engine, qrs, session }: 
   if (cfg.toolGroups.has("developer")) {
     registerDeveloperTools(server, engine, qrs, cfg, writes);
     registerBuilderTools(server, engine, qrs, cfg, writes);
+    // Needs the proxy session cookie (not in certificate mode) and the optional browser driver.
+    if (session && playwrightInstalled()) registerRenderTools(server, engine, cfg, session);
     registerMasterTools(server, engine, cfg, writes);
   }
 }

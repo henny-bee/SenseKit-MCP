@@ -5,7 +5,7 @@ import type { ChartType } from "./contract.js";
 
 export const boxplot: ChartType = {
   name: "boxplot",
-  spec: { minDims: 1, maxDims: 2, minMeasures: 1, maxMeasures: 1, cube: "hypercube", renderVerified: false },
+  spec: { minDims: 1, maxDims: 2, minMeasures: 1, maxMeasures: 1, cube: "hypercube" },
   minTile: { colspan: 8, rowspan: 6 },
   options: ["colorMode", "orientation", "includeZeros"],
   colorModes: ["auto", "single"],
@@ -21,7 +21,8 @@ export const boxplot: ChartType = {
         color: {
           auto: !single, mode: "primary", useBaseColors: "off", expressionIsColor: true, expressionLabel: "",
           box: { paletteColor: single ? { index: -1, color: applied.color } : { index: -1, color: "#e6e6e6" } },
-          point: { paletteColor: { index: 6, color: "#4477aa" } },
+          // One color = one meaning: outlier points take the boxes' color too.
+          point: { paletteColor: single ? { index: -1, color: applied.color } : { index: 6, color: "#4477aa" } },
         },
         elements: {
           firstWhisker: { name: "", expression: null },

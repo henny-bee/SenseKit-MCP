@@ -67,6 +67,9 @@ test("resolveVizOptions: target, operation and subtotal apply to their chart typ
   assert.ok(bar.notes.some((n) => /subtotal only applies to waterfallchart/.test(n)));
   assert.deepEqual(resolveVizOptions("bulletchart", {}, [], [{ expression: "Sum(X)", target: "Sum(Y)" }]).notes, []);
   assert.deepEqual(resolveVizOptions("waterfallchart", {}, [], [{ expression: "Sum(X)", operation: "subtract", subtotal: "S" }]).notes, []);
+  const bands = { limits: [0], colors: ["#c0392b", "#2e7d32"] };
+  assert.ok(resolveVizOptions("gauge", {}, [], [{ expression: "Sum(X)", colorBands: bands }]).notes.some((n) => /colorBands only applies to kpi/.test(n)));
+  assert.deepEqual(resolveVizOptions("kpi", {}, [], [{ expression: "Sum(X)", colorBands: bands }]).notes, []);
   const bullet = resolveVizOptions("bulletchart", { colorMode: "byMeasure", orientation: "vertical" }, [], [{ expression: "Sum(X)" }]);
   assert.equal(bullet.applied.colorMode, undefined);
   assert.equal(bullet.applied.orientation, "vertical");

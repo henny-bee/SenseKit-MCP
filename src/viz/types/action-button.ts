@@ -11,7 +11,7 @@ export function navigationProps(nav: NavigateTo | undefined): Record<string, unk
 
 export const actionButton: ChartType = {
   name: "action-button",
-  spec: { minDims: 0, maxDims: 0, minMeasures: 0, maxMeasures: 0, cube: "none", renderVerified: false },
+  spec: { minDims: 0, maxDims: 0, minMeasures: 0, maxMeasures: 0, cube: "none" },
   minTile: { colspan: 4, rowspan: 2 },
   options: ["colorMode", "navigateTo"],
   colorModes: ["auto", "single"],

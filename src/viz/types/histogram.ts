@@ -5,7 +5,7 @@ import type { ChartType } from "./contract.js";
 
 export const histogram: ChartType = {
   name: "histogram",
-  spec: { minDims: 1, maxDims: 1, minMeasures: 0, maxMeasures: 0, cube: "hypercube", renderVerified: false },
+  spec: { minDims: 1, maxDims: 1, minMeasures: 0, maxMeasures: 0, cube: "hypercube" },
   options: ["colorMode", "showDataLabels"],
   colorModes: ["auto", "single"],
   build: (input) => {

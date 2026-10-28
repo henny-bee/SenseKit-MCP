@@ -56,3 +56,17 @@ test("measureSpecFromDef and cubeDefOf: bullet targets, waterfall operations and
   const bar = buildVizProps("barchart", "t", ["Region"], ["Sum(S)"]);
   assert.equal(cubeDefOf(bar), bar.qHyperCubeDef);
 });
+
+test("measureSpecFromDef: kpi colorBands round-trip; client defaults and invalid bands read as none", () => {
+  const bands = { limits: [0], colors: ["#c0392b", "#2e7d32"] };
+  const kpi = buildVizProps("kpi", "t", [], [{ expression: "Sum(S)", colorBands: bands }, { libraryId: "lib", colorBands: { limits: [], colors: ["#1f3a5f"] } }]);
+  const back = kpi.qHyperCubeDef.qMeasures.map((m) => measureSpecFromDef(m));
+  assert.deepEqual(back[0].colorBands, bands);
+  assert.deepEqual(back[1].colorBands, { limits: [], colors: ["#1f3a5f"] });
+  const clientDefault = { qDef: { qDef: "Sum(S)", conditionalColoring: { useConditionalColoring: false, paletteSingleColor: { index: 6 }, segments: { limits: [], paletteColors: [{ index: 6 }] } } } };
+  assert.equal(measureSpecFromDef(clientDefault).colorBands, undefined);
+  const unsorted = { qDef: { qDef: "Sum(S)", conditionalColoring: { useConditionalColoring: true, segments: { limits: [{ value: 0.2 }, { value: 0.1 }], paletteColors: [{ color: "#000000" }, { color: "#111111" }, { color: "#222222" }] } } } };
+  assert.equal(measureSpecFromDef(unsorted).colorBands, undefined);
+  const bullet = buildVizProps("bulletchart", "t", [], ["Sum(S)"]);
+  assert.equal(measureSpecFromDef(bullet.qHyperCubeDef.qMeasures[0]).colorBands, undefined);
+});

@@ -205,7 +205,7 @@ describe("builder: add_sheet_object", () => {
     const kids = h.doc.objects.get(body.objectId).children;
     assert.equal(kids.length, 3);
     for (const k of kids) assert.ok(h.doc.objects.get(k).props.qListObjectDef, "child is a listbox");
-    assert.equal(body.validation.status, "warn"); // not render-verified yet
+    assert.equal(body.validation.status, "pass", JSON.stringify(body.validation.findings));
   });
 
   test("an action-button gets its label, color and target sheet, auto-placed as a small tile", async () => {
@@ -215,7 +215,7 @@ describe("builder: add_sheet_object", () => {
       sheetId: sheet, visualization: "action-button", title: "Go to target",
       options: { color: "#1f3a5f", navigateTo: { action: "goToSheet", sheetId: target } },
     }));
-    assert.equal(body.validation.status, "warn", JSON.stringify(body.validation.findings)); // not render-verified
+    assert.equal(body.validation.status, "pass", JSON.stringify(body.validation.findings));
     assert.deepEqual([body.cell.colspan, body.cell.rowspan], [4, 2]);
     const props = h.doc.objects.get(body.objectId).props;
     assert.equal(props.qHyperCubeDef, undefined);
@@ -380,6 +380,14 @@ describe("builder: update_sheet_object", () => {
     const q = h.doc.objects.get(w.objectId).props.qHyperCubeDef.qMeasures.map((m) => m.qDef);
     assert.deepEqual(q.map((d) => d.valueType), ["NORMAL", "INVERSE"]);
     assert.deepEqual(q[1].subtotal, { enable: true, label: "Net" });
+  });
+
+  test("a kpi update keeps each measure's colorBands", async () => {
+    const k = await add({ visualization: "kpi", measures: [{ expression: "Sum(Sales)", colorBands: { limits: [0], colors: ["#c0392b", "#2e7d32"] } }] });
+    ok(await h.callApp("update_sheet_object", { objectId: k.objectId, title: "Renamed" }));
+    const cc = h.doc.objects.get(k.objectId).props.qHyperCubeDef.qMeasures[0].qDef.conditionalColoring;
+    assert.equal(cc.useConditionalColoring, true);
+    assert.deepEqual(cc.segments.limits, [{ value: 0, gradient: false }]);
   });
 
   test("an action-button update keeps its navigation, client-set actions and label unless replaced", async () => {

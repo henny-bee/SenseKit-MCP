@@ -46,6 +46,10 @@ export const measureInputSchema = z.union([
     target: z.string().optional().describe("bulletchart only: target marker expression, e.g. 'Sum(Budget)'"),
     operation: z.enum(["add", "subtract", "subtotal"]).optional().describe("waterfallchart only: add (default), subtract, or subtotal (shows the running total; its expression is not used)"),
     subtotal: z.string().optional().describe("waterfallchart only: add a subtotal bar with this label after the measure"),
+    colorBands: z.object({
+      limits: z.array(z.number()).describe("Ascending thresholds, e.g. [0] or [0.18, 0.2]"),
+      colors: z.array(hexColorSchema).describe("One more than limits, lowest band first: colors[i] below limits[i], the last above the top limit"),
+    }).strict().optional().describe("kpi only: color the value by thresholds, e.g. {limits:[0], colors:['#c0392b','#2e7d32']} = red below 0, green from 0; {limits:[], colors:['#1f3a5f']} = one fixed color"),
   }).strict().describe("Exactly one of expression / libraryId"),
 ]);
 

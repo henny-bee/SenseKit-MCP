@@ -47,6 +47,15 @@ test("normalizeMeasures: strings, objects, and their errors", () => {
   assert.throws(() => normalizeMeasures([{ expression: "Sum(X)", numberFormat: { type: "number", decimals: 16 } }]), /decimals must be an integer 0-15/);
 });
 
+test("normalizeMeasures: colorBands need ascending limits and one more hex color", () => {
+  const bands = { limits: [0, 0.2], colors: ["#c0392b", "#f39c12", "#2e7d32"] };
+  assert.deepEqual(normalizeMeasures([{ expression: "X", colorBands: bands }])[0].colorBands, bands);
+  assert.deepEqual(normalizeMeasures([{ expression: "X", colorBands: { limits: [], colors: ["#1f3a5f"] } }])[0].colorBands, { limits: [], colors: ["#1f3a5f"] });
+  assert.throws(() => normalizeMeasures([{ expression: "X", colorBands: { limits: [0.2, 0], colors: ["#000", "#111", "#222"] } }]), /measures\[0\]: colorBands.limits must be numbers in ascending order/);
+  assert.throws(() => normalizeMeasures([{ expression: "X", colorBands: { limits: [0], colors: ["#000"] } }]), /colorBands.colors must be 2 hex colors/);
+  assert.throws(() => normalizeMeasures([{ expression: "X", colorBands: { limits: [0], colors: ["#000", "red"] } }]), /colorBands.colors must be 2 hex colors/);
+});
+
 test("normalize: includeNulls and pivotColumn must be booleans; series type and axis are checked", () => {
   assert.deepEqual(normalizeDims([{ field: "A", includeNulls: false, pivotColumn: true }]), [{ field: "A", includeNulls: false, pivotColumn: true }]);
   assert.throws(() => normalizeDims([{ field: "A", includeNulls: "no" }]), /includeNulls must be true or false/);

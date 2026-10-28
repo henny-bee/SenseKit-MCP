@@ -1,4 +1,4 @@
-import { HEX_COLOR, SORT_CRITERIA, SERIES_TYPES, type DimSpec, type DimSort, type MeasureSpec, type SeriesType, type WaterfallOperation } from "./inputs.js";
+import { HEX_COLOR, SORT_CRITERIA, SERIES_TYPES, checkColorBands, type ColorBands, type DimSpec, type DimSort, type MeasureSpec, type SeriesType, type WaterfallOperation } from "./inputs.js";
 import { numberFormatFromEngine } from "./number-format.js";
 import { ToolError } from "../core/errors.js";
 import type { GenericObjectProperties, HyperCubeDef, NxInlineDimensionDef, NxMeasure, NxSortCriteria } from "../qix/types.js";
@@ -70,7 +70,25 @@ export function measureSpecFromDef(entry: Partial<NxMeasure> | undefined, where 
   if (op) out.operation = op;
   const subtotal = entry?.qDef?.subtotal as { enable?: unknown; label?: unknown } | undefined;
   if (subtotal?.enable === true) out.subtotal = typeof subtotal.label === "string" && subtotal.label.trim() ? subtotal.label : "Subtotal";
+  const bands = colorBandsOf(entry?.qDef?.conditionalColoring);
+  if (bands) out.colorBands = bands;
   return out;
+}
+
+type Coloring = {
+  useConditionalColoring?: unknown;
+  paletteSingleColor?: { index?: unknown; color?: unknown };
+  segments?: { limits?: { value?: unknown }[]; paletteColors?: { color?: unknown }[] };
+};
+
+// Only bands that pass checkColorBands: an update re-validates what is read back.
+function colorBandsOf(cc: unknown): ColorBands | undefined {
+  if (!cc || typeof cc !== "object") return undefined;
+  const c = cc as Coloring;
+  const bands = c.useConditionalColoring === true
+    ? { limits: (c.segments?.limits ?? []).map((l) => l?.value), colors: (c.segments?.paletteColors ?? []).map((p) => p?.color) }
+    : { limits: [], colors: c.paletteSingleColor?.index === -1 ? [c.paletteSingleColor.color] : [] };
+  try { return checkColorBands("", bands as ColorBands); } catch { return undefined; }
 }
 
 export function specsFromProps(

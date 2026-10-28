@@ -6,10 +6,12 @@ const VALUE_TYPE: Record<WaterfallOperation, string> = { add: "NORMAL", subtract
 
 export const waterfallchart: ChartType = {
   name: "waterfallchart",
-  spec: { minDims: 0, maxDims: 0, minMeasures: 1, maxMeasures: 50, cube: "hypercube", renderVerified: false },
-  options: ["showDataLabels", "showLegend"],
+  spec: { minDims: 0, maxDims: 0, minMeasures: 1, maxMeasures: 50, cube: "hypercube" },
+  options: ["colorMode", "showDataLabels", "showLegend"],
+  colorModes: ["auto", "single"],
   build: (input) => {
     const { base, meas, applied } = input;
+    const single = applied.colorMode === "single" && applied.color;
     const cube = clientCube(input, { qInitialDataFetch: [{ qLeft: 0, qTop: 0, qWidth: 200, qHeight: 10 }] });
     cube.qMeasures.forEach((entry, i) => {
       entry.qDef.valueType = VALUE_TYPE[meas[i].operation ?? "add"];
@@ -19,9 +21,10 @@ export const waterfallchart: ChartType = {
       ...base,
       showTitles: true, subtitle: "", footnote: "",
       qHyperCubeDef: cube,
+      // The client ignores all three colors while auto is true; "single" colors the positive bars.
       color: {
-        auto: true,
-        positiveValue: { paletteColor: { index: 6, color: null } },
+        auto: !single,
+        positiveValue: { paletteColor: single ? { index: -1, color: applied.color } : { index: 6, color: null } },
         negativeValue: { paletteColor: { index: -1, color: "#cc6677" } },
         subtotal: { paletteColor: { index: -1, color: "#c3c3c3" } },
       },

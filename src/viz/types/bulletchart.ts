@@ -6,7 +6,7 @@ import type { ChartType } from "./contract.js";
 
 export const bulletchart: ChartType = {
   name: "bulletchart",
-  spec: { minDims: 0, maxDims: 1, minMeasures: 1, maxMeasures: 15, cube: "hypercube", renderVerified: false },
+  spec: { minDims: 0, maxDims: 1, minMeasures: 1, maxMeasures: 15, cube: "hypercube" },
   shapeRule: (nDims, nMeasures) =>
     nDims > 0 && nMeasures > 1 ? `bulletchart with a dimension takes exactly 1 measure (without a dimension, up to 15), got ${nMeasures}` : undefined,
   options: ["colorMode", "orientation", "includeZeros", "sortByMeasure"],
@@ -26,6 +26,9 @@ export const bulletchart: ChartType = {
       entry.qAttributeExpressions = target ? [{ qExpression: target, id: "bullet-target" }] : [];
     });
     const single = applied.colorMode === "single" && applied.color;
+    const bar = single ? { index: -1, color: applied.color } : { index: 6 };
+    // Rows of one measure share a scale; separate measures keep their own.
+    const common = input.dims.length > 0;
     // Sort only: applyOptions' color handling writes the bar chart's color block.
     return applyOptions({
       ...base,
@@ -34,14 +37,15 @@ export const bulletchart: ChartType = {
       scrollbar: "bar", scrollStartPos: 0,
       gridLine: { auto: true, spacing: 2 },
       dataPoint: { showLabels: false, showSegmentLabels: false, showTotalLabels: true },
+      // The client draws paletteColor (its "Bar color"); color.bar from the spec is never read.
       color: {
-        auto: !single, mode: "primary", useBaseColors: "off", paletteColor: { index: 6 },
+        auto: !single, mode: "primary", useBaseColors: "off", paletteColor: bar,
         target: { index: -1, color: "#000000" },
-        bar: single ? { index: -1, color: applied.color } : { index: 6 },
+        bar,
       },
       legend: { show: true, dock: "auto", showTitle: true },
       dimensionAxis: { continuousAuto: true, show: "all", label: "auto", dock: "near" },
-      measureAxis: { show: "all", dock: "near", spacing: 1, commonRange: false, commonAxis: false },
+      measureAxis: { show: "all", dock: "near", spacing: 1, commonRange: common, commonAxis: common },
       tooltip: { auto: true, hideBasic: false, chart: { style: { size: "medium" } }, title: "", description: "" },
       qHyperCubeDef: cube,
     }, "bulletchart", { sortByMeasure: applied.sortByMeasure });

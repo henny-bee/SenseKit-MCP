@@ -34,8 +34,13 @@ export interface MeasureSpec {
   operation?: WaterfallOperation;
   /** waterfallchart only: label of a subtotal bar after this measure. */
   subtotal?: string;
+  /** kpi only: value colors; no limits = one fixed color. */
+  colorBands?: ColorBands;
 }
 export type MeasureInput = string | MeasureSpec;
+
+// colors[i] is used below limits[i]; the last color above the top limit.
+export interface ColorBands { limits: number[]; colors: string[] }
 
 export type SeriesType = "bar" | "line" | "marker";
 export type SeriesAxis = "primary" | "secondary";
@@ -139,8 +144,20 @@ export function normalizeMeasures(inputs: ReadonlyArray<MeasureInput> = []): Mea
       if (typeof m.subtotal !== "string" || !m.subtotal.trim()) throw new ToolError("INVALID_INPUT", `${where}: subtotal must be a label`);
       out.subtotal = m.subtotal;
     }
+    if (m.colorBands !== undefined) out.colorBands = checkColorBands(where, m.colorBands);
     return out;
   });
+}
+
+export function checkColorBands(where: string, bands: ColorBands): ColorBands {
+  const { limits, colors } = bands ?? {};
+  if (!Array.isArray(limits) || !limits.every((v, i) => Number.isFinite(v) && (i === 0 || v > limits[i - 1]))) {
+    throw new ToolError("INVALID_INPUT", `${where}: colorBands.limits must be numbers in ascending order`);
+  }
+  if (!Array.isArray(colors) || colors.length !== limits.length + 1 || !colors.every((c) => HEX_COLOR.test(c))) {
+    throw new ToolError("INVALID_INPUT", `${where}: colorBands.colors must be ${limits.length + 1} hex colors (one more than limits), lowest band first`);
+  }
+  return { limits: [...limits], colors: [...colors] };
 }
 
 export const withEq = (e: string) => (e.startsWith("=") ? e : `=${e}`);

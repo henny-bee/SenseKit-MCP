@@ -103,6 +103,23 @@ test("buildVizProps kpi: library measure matches the client's link shape, label 
   assert.equal(inline.legend, undefined); // kpi gets no nebula chart blocks
 });
 
+test("buildVizProps kpi: colorBands become the client's conditionalColoring, on master measures too", () => {
+  const p = buildVizProps("kpi", "K", [], [
+    { expression: "Sum(Sales)", colorBands: { limits: [0], colors: ["#c0392b", "#2e7d32"] } },
+    { libraryId: "lib-m", colorBands: { limits: [], colors: ["#1f3a5f"] } },
+  ]);
+  const [a, b] = p.qHyperCubeDef.qMeasures.map((m) => m.qDef.conditionalColoring);
+  assert.deepEqual(a, {
+    useConditionalColoring: true, singleColor: 3, paletteSingleColor: { index: -1, color: "#c0392b" },
+    segments: { limits: [{ value: 0, gradient: false }], paletteColors: [{ index: -1, color: "#c0392b" }, { index: -1, color: "#2e7d32" }] },
+    useBaseColors: false,
+  });
+  assert.equal(b.useConditionalColoring, false);
+  assert.deepEqual(b.paletteSingleColor, { index: -1, color: "#1f3a5f" });
+  assert.equal(p.qHyperCubeDef.qMeasures[1].qLibraryId, "lib-m");
+  assert.equal(buildVizProps("kpi", "K", [], ["Sum(Sales)"]).qHyperCubeDef.qMeasures[0].qDef.conditionalColoring, undefined);
+});
+
 test("buildVizProps table: column labels, calculated dim, sortByMeasure asc", () => {
   const t = buildVizProps("table", "T",
     [{ field: "Region", label: "Region name" }, { expression: "=Year(D)", label: "Year" }],
@@ -185,13 +202,13 @@ test("buildVizProps action-button: label, background and navigation in the super
     buildVizProps("action-button", "Web", [], [], { navigateTo: { action: "openWebsite", url: "https://example.com" } }).navigation,
     { action: "openWebsite", websiteUrl: "https://example.com", sameWindow: false },
   );
-  assert.equal(VIZ_SPECS["action-button"].renderVerified, false);
+  assert.equal(VIZ_SPECS["action-button"].renderVerified, undefined); // seen in a browser, 2026-10
   assert.equal(checkVizShape("action-button", 1, 0)[0].severity, "fail");
 });
 
 test("filterpane: spec, parent has no cube, one listbox child per dimension", () => {
   assert.equal(VIZ_SPECS.filterpane.cube, "filterpane");
-  assert.equal(VIZ_SPECS.filterpane.renderVerified, false);
+  assert.equal(VIZ_SPECS.filterpane.renderVerified, undefined);
   assert.equal(checkVizShape("filterpane", 0, 0)[0].severity, "fail");
   assert.equal(checkVizShape("filterpane", 2, 1)[0].severity, "fail");
   assert.equal(checkVizShape("filterpane", 20, 0).length, 0);
@@ -269,12 +286,16 @@ test("bulletchart: per-measure target as qDef.target plus the bullet-target attr
   assert.equal(m.qDef.useSegments, false);
   assert.equal(b.orientation, "vertical");
   assert.equal(b.color.auto, false);
+  // The client draws paletteColor; bar is kept for the spec.
+  assert.deepEqual(b.color.paletteColor, { index: -1, color: "#1f3a5f" });
   assert.deepEqual(b.color.bar, { index: -1, color: "#1f3a5f" });
+  assert.deepEqual([b.measureAxis.commonAxis, b.measureAxis.commonRange], [true, true]);
   const plain = buildVizProps("bulletchart", "t", [], ["Sum(Sales)", "Sum(Cost)"]);
   assert.equal(plain.qHyperCubeDef.qMeasures[0].qDef.target, "");
   assert.deepEqual(plain.qHyperCubeDef.qMeasures[0].qAttributeExpressions, []);
   assert.equal(plain.orientation, "horizontal");
   assert.equal(plain.color.auto, true);
+  assert.deepEqual([plain.measureAxis.commonAxis, plain.measureAxis.commonRange], [false, false]);
   assert.equal(plain.qHyperCubeDef.qSuppressZero, false);
   assert.equal(buildVizProps("bulletchart", "t", ["Rep"], ["Sum(S)"], { includeZeros: false }).qHyperCubeDef.qSuppressZero, true);
   const ranked = buildVizProps("bulletchart", "t", ["Rep"], ["Sum(S)"], { sortByMeasure: "desc", color: "#123456" });
@@ -298,6 +319,8 @@ test("boxplot: the cube lives under boxplotDef, with the client's calculation de
   assert.equal(cube.qAlwaysFullyExpanded, true);
   assert.deepEqual(b.boxplotDef.calculations, { auto: true, mode: "tukey", parameters: { tukey: 1.5, fractiles: 0.01, stdDev: 3 } });
   assert.equal(b.orientation, "vertical");
+  const navy = buildVizProps("boxplot", "t", ["Customer"], ["Sum(Sales)"], { color: "#1f3a5f" }).boxplotDef.color;
+  assert.deepEqual([navy.auto, navy.box.paletteColor.color, navy.point.paletteColor.color], [false, "#1f3a5f", "#1f3a5f"]);
   assert.deepEqual(checkVizShape("boxplot", 1, 1), []);
   assert.equal(checkVizShape("boxplot", 3, 1)[0].severity, "fail");
 });
@@ -336,7 +359,13 @@ test("waterfallchart: measures add, subtract or subtotal, with optional subtotal
   assert.equal(q[0].subtotal, undefined);
   assert.equal(w.legend.show, false);
   assert.equal(w.dataPoint.showLabels, true);
+  assert.equal(w.color.auto, true);
   assert.equal(checkVizShape("waterfallchart", 1, 1)[0].severity, "fail");
+  // auto must be off, or the client ignores every custom color.
+  const navy = buildVizProps("waterfallchart", "t", [], ["Sum(Sales)"], { color: "#1f3a5f" });
+  assert.equal(navy.color.auto, false);
+  assert.deepEqual(navy.color.positiveValue.paletteColor, { index: -1, color: "#1f3a5f" });
+  assert.deepEqual(navy.color.negativeValue.paletteColor, { index: -1, color: "#cc6677" });
 });
 
 test("mekkochart: two dimensions and one measure, zero rows suppressed", () => {
@@ -345,7 +374,8 @@ test("mekkochart: two dimensions and one measure, zero rows suppressed", () => {
   assert.equal(m.qHyperCubeDef.qSuppressZero, true);
   assert.deepEqual(m.cellColor, { mode: "auto", legend: { show: "auto", showTitle: true } });
   assert.equal(checkVizShape("mekkochart", 1, 1)[0].severity, "fail");
+  // Seen painting in a browser (render_sheet, 2026-10).
   for (const t of ["bulletchart", "boxplot", "histogram", "distributionplot", "waterfallchart", "mekkochart"]) {
-    assert.equal(VIZ_SPECS[t].renderVerified, false, t);
+    assert.equal(VIZ_SPECS[t].renderVerified, undefined, t);
   }
 });

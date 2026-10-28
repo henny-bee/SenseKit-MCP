@@ -5,7 +5,7 @@ import type { ChartType } from "./contract.js";
 
 export const distributionplot: ChartType = {
   name: "distributionplot",
-  spec: { minDims: 1, maxDims: 2, minMeasures: 1, maxMeasures: 1, cube: "hypercube", renderVerified: false },
+  spec: { minDims: 1, maxDims: 2, minMeasures: 1, maxMeasures: 1, cube: "hypercube" },
   minTile: { colspan: 8, rowspan: 6 },
   options: ["orientation", "includeZeros"],
   build: (input) => {

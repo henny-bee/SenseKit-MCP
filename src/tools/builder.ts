@@ -26,7 +26,7 @@ const dimensionsParam = z.array(dimensionInputSchema).optional()
 const measuresParam = z.array(measureInputSchema).optional()
   .describe("Expressions, e.g. 'Sum(Sales)', or objects {expression|libraryId, label?, numberFormat?, color?, series?} — exactly one of expression/libraryId (master measure)");
 const optionsParam = vizOptionsSchema.optional()
-  .describe("Styling: colorMode/color, showLegend, showDataLabels, orientation + stacked (barchart), sortByMeasure, includeZeros; navigateTo (action-button). Options that don't apply to the type are ignored and listed in the response's notes. NOT yet render-verified.");
+  .describe("Styling: colorMode/color, showLegend, showDataLabels, orientation + stacked (barchart), sortByMeasure, includeZeros; navigateTo (action-button). Options that don't apply to the type are ignored and listed in the response's notes. Single colors, sortByMeasure, includeZeros and navigateTo have been seen in a browser; the other options are NOT yet render-verified.");
 
 export function registerBuilderTools(server: McpServer, engine: EngineClient, qrs: QrsClient, cfg: Config, writes: KeyedLock): void {
   server.registerTool(

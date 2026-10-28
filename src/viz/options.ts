@@ -69,6 +69,7 @@ export function resolveVizOptions(
     if (m.target !== undefined && viz !== "bulletchart") notes.push(`measures[${i}]: target only applies to bulletchart — ignored`);
     if (m.operation !== undefined && viz !== "waterfallchart") notes.push(`measures[${i}]: operation only applies to waterfallchart — ignored`);
     if (m.subtotal !== undefined && viz !== "waterfallchart") notes.push(`measures[${i}]: subtotal only applies to waterfallchart — ignored`);
+    if (m.colorBands !== undefined && viz !== "kpi") notes.push(`measures[${i}]: colorBands only applies to kpi — ignored`);
   });
   let measureColors = false;
   if (measures.some((m) => m.color)) {

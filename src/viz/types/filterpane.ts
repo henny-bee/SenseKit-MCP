@@ -2,7 +2,7 @@ import type { ChartType } from "./contract.js";
 
 export const filterpane: ChartType = {
   name: "filterpane",
-  spec: { minDims: 1, maxDims: 20, minMeasures: 0, maxMeasures: 0, cube: "filterpane", renderVerified: false },
+  spec: { minDims: 1, maxDims: 20, minMeasures: 0, maxMeasures: 0, cube: "filterpane" },
   build: ({ base, title }) => {
     // Without qChildListDef the client never finds the listbox children.
     return {

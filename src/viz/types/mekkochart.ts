@@ -3,7 +3,7 @@ import type { ChartType } from "./contract.js";
 
 export const mekkochart: ChartType = {
   name: "mekkochart",
-  spec: { minDims: 2, maxDims: 2, minMeasures: 1, maxMeasures: 1, cube: "hypercube", renderVerified: false },
+  spec: { minDims: 2, maxDims: 2, minMeasures: 1, maxMeasures: 1, cube: "hypercube" },
   minTile: { colspan: 8, rowspan: 6 },
   build: (input) => ({
     ...input.base,

@@ -1,5 +1,4 @@
-// kpi: one or two measures, no dimensions. Sense-native (not a nebula
-// supernova), so it takes the plain straight cube.
+// Sense-native, not a supernova: takes the plain straight cube.
 
 import { buildCube } from "../build.js";
 import type { ChartType } from "./contract.js";

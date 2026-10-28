@@ -1,6 +1,3 @@
-// Admin group, QRS tools: site info, listings, paging, the generic search
-// and its redaction, and start_task.
-
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { startServer, ok, expectToolError, expectInvalidArgs, deepIncludes } from "../helpers/harness.mjs";
@@ -26,7 +23,6 @@ describe("admin: site information", () => {
     assert.equal(rows.length, 4);
     assert.deepEqual(rows[0], { node: "node1.example.invalid", service: "Repository", state: "Running", healthy: true });
     assert.deepEqual(rows[2], { node: "node2", service: "Scheduler", state: "NoCommunication", healthy: false });
-    // Unknown enum values are surfaced, not dropped.
     assert.equal(rows[3].service, "type-42");
     assert.equal(rows[3].state, "state-77");
   });
@@ -138,7 +134,6 @@ describe("admin: credential redaction on QRS output", () => {
     const dc = body.items[0];
     assert.equal(dc.name, "WarehouseDB");
     assert.match(dc.connectionstring, /PWD=\*\*\*REDACTED\*\*\*/);
-    // Non-secret parts of the connection string survive.
     assert.match(dc.connectionstring, /Data Source=warehouse\.internal/);
   });
 
@@ -146,7 +141,7 @@ describe("admin: credential redaction on QRS output", () => {
     const body = ok(await h.call("qrs_search", { entity: "dataconnection", full: true }));
     assertNoSecrets(body);
     assert.equal(body.items[0].password, "***REDACTED***");
-    // Empty values stay empty: "no credential" is not a secret.
+    // "No credential" is not a secret: empty stays empty.
     assert.equal(body.items[0].passphrase, "");
     assert.equal(h.qrs.calls.at(-1).path, "/qrs/dataconnection/full");
   });

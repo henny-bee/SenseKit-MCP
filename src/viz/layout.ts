@@ -1,18 +1,11 @@
-// Sheet grid layout: tile sizes, cell placement, and the placement lint.
-
 import type { VizFinding } from "./specs.js";
 import { CHART_TYPES } from "./types/index.js";
 import type { GenericObject, GenericObjectProperties, SheetCell } from "../qix/types.js";
 
-/** Minimum tile the type needs to actually draw at sheet scale (declared per
- *  type as ChartType.minTile). */
 export const MIN_TILE: Record<string, { colspan: number; rowspan: number }> = Object.fromEntries(
   CHART_TYPES.flatMap((t) => (t.minTile ? [[t.name, t.minTile]] : [])),
 );
 
-/** Sheet-cell placement lint: every child placed, every cell backed by a
- *  child, everything inside the grid, no overlaps. These are the "object
- *  exists but the sheet shows nothing / garbage" failure modes. */
 export function checkCellPlacement(
   cells: Array<{ name: string; col: number; row: number; colspan: number; rowspan: number }>,
   childIds: string[],
@@ -52,12 +45,7 @@ type Box = { col: number; row: number; colspan: number; rowspan: number };
 const overlaps = (a: Box, b: Box) =>
   a.col < b.col + b.colspan && b.col < a.col + a.colspan && a.row < b.row + b.rowspan && b.row < a.row + a.rowspan;
 
-/** Auto-placement slot for a `span` tile, given the other cells. The classic
- *  slot (3 tiles per 4-row band, by cell count n) wins whenever it is free, so
- *  sheets of uniform 8x4 tiles lay out exactly as before. When it would
- *  overlap an earlier, taller tile (piechart/scatterplot 8x6, treemap 8x8),
- *  take the first 8-column-aligned slot, scanning rows top-down, that
- *  overlaps nothing; failing that, go below the lowest cell. */
+// The classic slot wins when free, so uniform 8x4 sheets lay out unchanged.
 function autoSlot(others: Box[], n: number, span: { colspan: number; rowspan: number }, columns: number) {
   const free = (b: Box) => !others.some((o) => overlaps(b, o));
   const classic = { col: (n % 3) * 8, row: Math.floor(n / 3) * 4, ...span };
@@ -72,8 +60,7 @@ function autoSlot(others: Box[], n: number, span: { colspan: number; rowspan: nu
   return { col: 0, row: bottom, ...span };
 }
 
-/** Put objectId's cell at `position` (or auto-place it), replacing the cell
- *  it already has, and grow the grid to fit. Mutates the sheet props. */
+// Mutates the sheet props.
 export function placeCell(
   props: GenericObjectProperties,
   objectId: string,
@@ -87,18 +74,13 @@ export function placeCell(
   if (position) {
     cell = { name: objectId, type: viz, ...position };
   } else {
-    // Auto-place: next free row band, 8x4 tiles, 3 per row.
-    // Treemap refuses to draw ("This chart cannot be displayed") in a
-    // short tile — it needs real estate. Verified live at sheet-tile
-    // sizes, which is why auto-placement is per-type, not one-size.
+    // Per-type tile size: e.g. treemap refuses to draw in a short tile.
     const n = cells.length;
     const span = MIN_TILE[viz] ?? { colspan: 8, rowspan: 4 };
     const others = cells.filter((_, i) => i !== idx).map(cellBox);
     cell = { name: objectId, type: viz, ...autoSlot(others, n, span, grid.columns) };
   }
-  // A cell below the grid renders NOTHING (caught by our own gate on the
-  // first live matrix run — 14 auto-placed tiles overflowed the default
-  // 12-row grid). Grow the sheet instead of silently placing off-grid.
+  // A cell outside the grid renders nothing, so grow the sheet.
   if (cell.row + cell.rowspan > grid.rows) {
     props.rows = cell.row + cell.rowspan;
     grid.rows = props.rows;
@@ -111,7 +93,6 @@ export function placeCell(
   return { cell, grid };
 }
 
-/** Placement lint for the sheet, narrowed to findings about one object. */
 export async function placementFor(sheet: GenericObject, props: GenericObjectProperties, grid: { columns: number; rows: number }, objectId: string) {
   return checkCellPlacement(
     (props.cells ?? []).map(cellBox),

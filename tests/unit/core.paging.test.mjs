@@ -2,8 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { paginate } from "../../dist/core/paging.js";
 
-// ── paginate ─────────────────────────────────────────────────────────────────
-
 test("paginate envelope: defaults, offset/limit, truncated flag", () => {
   const items = Array.from({ length: 250 }, (_, i) => i);
   const d = paginate(items);

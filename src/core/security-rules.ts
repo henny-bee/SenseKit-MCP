@@ -17,16 +17,11 @@ export interface SecurityRuleFinding {
   reason: string;
 }
 
-/** Shipped rules carry type "Default" (editable) or "ReadOnly" (immutable,
- *  e.g. RootAdmin) — verified live; only "Custom" is user-authored. */
+// Shipped rules are "Default" or "ReadOnly"; only "Custom" is user-authored.
 export function isShippedRule(type: unknown): boolean {
   return type === "Default" || type === "ReadOnly";
 }
 
-/** Heuristic lint over QRS security rules. Findings are prompts for a human
- *  review, not verdicts — a disabled default rule can be a deliberate
- *  hardening choice. */
-/** The QRS systemrule fields the lint reads (the entity carries many more). */
 export interface SecurityRule {
   id?: string;
   name?: string;

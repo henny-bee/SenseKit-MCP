@@ -1,12 +1,5 @@
 #!/usr/bin/env node
-// Timed validation of the ops-demo RUNBOOK: runs Beat 1 (reload forensics)
-// and Beat 2 (security-rule drift) as an agent would, asserts every claim the
-// runbook makes, and prints a transcript usable as the demo script.
-//
-// Leaves the site exactly as it found it: the planted rule is removed at the
-// end, and the failing nightly task is standing state by design.
-//
-// Requires: `node setup.mjs` once, server env vars, QSEOW_ALLOW_MUTATIONS=true.
+// Run setup.mjs once first; needs QSEOW_ALLOW_MUTATIONS=true.
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { TASK_NAME, RULE_NAME, MISSING_FILE } from "./common.mjs";
@@ -29,7 +22,6 @@ const ok = (label, cond, detail = "") => {
   if (!cond) { console.error("   ASSERTION FAILED"); process.exit(1); }
 };
 
-// ── Beat 1: "The nightly sales reload failed again. Why?" ────────────────────
 console.log(`${stamp()} BEAT 1 — reload forensics`);
 
 const tasks = await call("list_tasks", { filter: `name eq '${TASK_NAME}'` });
@@ -43,7 +35,6 @@ ok("execution detail timeline returned", Array.isArray(log.details) && log.detai
 ok("script log retrieved", log.log && log.log.lines.length > 0,
   `${log.log.lines.length} of ${log.log.totalLines} lines`);
 
-// The whole point of the tool: the ACTUAL cause, not just "it failed".
 const logText = log.log.lines.join("\n");
 const errLine = log.log.lines.find((l) => /Error:/i.test(l)) ?? "";
 ok("root cause present in the log tail", /cannot open file/i.test(logText),
@@ -54,13 +45,11 @@ ok("the native path is named", /Native Path:/i.test(logText),
   (/Native Path: ([^\s)]+)/i.exec(logText) || [])[1] ?? "");
 console.log(`${stamp()}   → an agent can answer "why did it fail" from ONE tool call`);
 
-// ── Engine health: "is the engine even the problem?" ─────────────────────────
 const health = await call("engine_healthcheck");
 ok("engine health readable", typeof health.saturated === "boolean",
   `version=${health.version} saturated=${health.saturated} loadedDocs=${health.apps.loadedDocs}`);
 ok("engine is NOT the cause here", health.saturated === false, "rules out resource exhaustion");
 
-// ── Beat 2: security-rule drift, measured as a before/after delta ────────────
 console.log(`${stamp()} BEAT 2 — security-rule audit`);
 
 const before = await call("security_rule_audit", { includeRules: false });

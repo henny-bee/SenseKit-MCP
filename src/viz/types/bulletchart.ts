@@ -1,8 +1,4 @@
-// bulletchart: the client's Bullet chart. Property set mirrors a bullet
-// chart authored in the Qlik client (harvested from a live site, 2026-10),
-// with the measure fields documented by @nebula.js/sn-bullet-chart. Each
-// measure is a bar; its target (qDef.target) is also written as the
-// "bullet-target" attribute expression, the way the client stores it.
+// Target is also the "bullet-target" attribute, as the client stores it.
 
 import { applyOptions, clientCube } from "../build.js";
 import { withEq } from "../inputs.js";
@@ -11,8 +7,6 @@ import type { ChartType } from "./contract.js";
 export const bulletchart: ChartType = {
   name: "bulletchart",
   spec: { minDims: 0, maxDims: 1, minMeasures: 1, maxMeasures: 15, cube: "hypercube", renderVerified: false },
-  // The client's own data limits: a dimension allows one measure; without
-  // one, up to 15 measures each get a bar.
   shapeRule: (nDims, nMeasures) =>
     nDims > 0 && nMeasures > 1 ? `bulletchart with a dimension takes exactly 1 measure (without a dimension, up to 15), got ${nMeasures}` : undefined,
   options: ["colorMode", "orientation", "includeZeros", "sortByMeasure"],
@@ -32,8 +26,7 @@ export const bulletchart: ChartType = {
       entry.qAttributeExpressions = target ? [{ qExpression: target, id: "bullet-target" }] : [];
     });
     const single = applied.colorMode === "single" && applied.color;
-    // Only the sort goes through the shared helper: its color handling
-    // writes the bar charts' color block, not the bullet chart's.
+    // Sort only: applyOptions' color handling writes the bar chart's color block.
     return applyOptions({
       ...base,
       showTitles: true, subtitle: "", footnote: "", showDetails: true,

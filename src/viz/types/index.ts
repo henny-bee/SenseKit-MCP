@@ -1,5 +1,4 @@
-// The chart-type registry. Order matters: it is the order VIZ_SPECS — and so
-// every tool description that lists supported types — enumerates them.
+// Order matters: tool descriptions list the supported types in this order.
 
 import type { ChartType } from "./contract.js";
 import { kpi } from "./kpi.js";
@@ -30,5 +29,4 @@ export const CHART_TYPES: readonly ChartType[] = [
 
 export const CHART_TYPES_BY_NAME: ReadonlyMap<string, ChartType> = new Map(CHART_TYPES.map((t) => [t.name, t]));
 
-/** Types rendered by nebula.js supernovas (see viz/build.ts NEBULA_DEFAULTS). */
 export const NEBULA_CHART_TYPES = new Set(CHART_TYPES.filter((t) => t.nebula).map((t) => t.name));

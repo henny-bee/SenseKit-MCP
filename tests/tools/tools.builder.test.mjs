@@ -1,14 +1,8 @@
-// UI builder (developer group): sheets, visualization objects and the
-// render-validation gate. Contract under test: what ends up in the app
-// (objects, children, cells, grid) and what the gate reports, plus every
-// pre-flight refusal leaving the app untouched.
-
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { startServer, ok, expectToolError, expectInvalidArgs } from "../helpers/harness.mjs";
 import { seedApp } from "../helpers/seed.mjs";
 
-/** Object ids that are direct children of a sheet in the fake app. */
 const childrenOf = (h, sheetId) => h.doc.objects.get(sheetId).children;
 const cellsOf = (h, sheetId) => h.doc.objects.get(sheetId).props.cells ?? [];
 const gridOf = (h, sheetId) => {
@@ -20,7 +14,6 @@ async function newSheet(h, title = "Sheet") {
   return ok(await h.callApp("create_sheet", { title })).sheetId;
 }
 
-/** A refusal must not create, change or save anything. */
 async function refusedWithoutSideEffects(h, name, args, expectation) {
   const snapshot = JSON.stringify([...h.doc.objects]);
   const saves = h.doc.saves;
@@ -45,12 +38,11 @@ describe("builder: validate_sheet (read-only gate)", () => {
     assert.equal(body.objectCount, 3);
     assert.deepEqual(body.placementFindings, []);
     const status = Object.fromEntries(body.objects.map((o) => [o.objectId, o.status]));
-    // The hand-seeded bar chart lacks the nebula default blocks: it would
-    // render blank, and the gate must say so.
+    // Seeded bar lacks nebula default blocks, so it would render blank.
     assert.equal(status[ids.barId], "fail");
     assert.ok(body.objects.find((o) => o.objectId === ids.barId).findings.some((f) => /nebula/.test(f.message)));
     assert.equal(status[ids.kpiId], "pass");
-    // Installed extensions (from QRS) count as known visualizations.
+    // Extensions listed by QRS count as known visualizations.
     assert.equal(status[ids.extId], "pass");
     assert.equal(body.verdict, "FAIL");
   });
@@ -73,7 +65,7 @@ describe("builder: validate_sheet (read-only gate)", () => {
     const props = await sheet.getProperties();
     const saved = JSON.parse(JSON.stringify(props));
     props.cells = [
-      { name: ids.barId, type: "barchart", col: 20, row: 0, colspan: 8, rowspan: 4 }, // off-grid
+      { name: ids.barId, type: "barchart", col: 20, row: 0, colspan: 8, rowspan: 4 },
       { name: "orphan", type: "kpi", col: 0, row: 8, colspan: 2, rowspan: 2 },
     ];
     await sheet.setProperties(props);
@@ -201,7 +193,6 @@ describe("builder: add_sheet_object", () => {
       assert.ok(!body.placementFindings.some((f) => f.severity === "fail"), `${visualization}: ${JSON.stringify(body.placementFindings)}`);
       assert.equal(h.doc.objects.get(body.objectId).props.visualization, visualization);
     }
-    // Auto-placement grew the grid instead of placing tiles off-sheet.
     const gate = ok(await h.callApp("validate_sheet", { sheetId: sheet }));
     assert.equal(gate.objectCount, Object.keys(shapes).length);
     assert.ok(!gate.placementFindings.some((f) => f.severity === "fail"), JSON.stringify(gate.placementFindings));
@@ -214,7 +205,7 @@ describe("builder: add_sheet_object", () => {
     const kids = h.doc.objects.get(body.objectId).children;
     assert.equal(kids.length, 3);
     for (const k of kids) assert.ok(h.doc.objects.get(k).props.qListObjectDef, "child is a listbox");
-    assert.equal(body.validation.status, "warn"); // not render-verified yet, but not failing
+    assert.equal(body.validation.status, "warn"); // not render-verified yet
   });
 
   test("an action-button gets its label, color and target sheet, auto-placed as a small tile", async () => {
@@ -254,8 +245,7 @@ describe("builder: add_sheet_object", () => {
   });
 
   test("auto-placement never overlaps an earlier, taller tile", async () => {
-    // A piechart auto-places as 8x6; the 4th tile lands in the same column
-    // one 4-row band lower and must not overlap it.
+    // Pie is 8x6; the 4th tile lands one 4-row band lower in its column.
     const sheet = await newSheet(h, "Auto-place");
     ok(await h.callApp("add_sheet_object", { sheetId: sheet, visualization: "piechart", dimensions: ["Region"], measures: ["Sum(Sales)"] }));
     for (let i = 0; i < 3; i++) ok(await h.callApp("add_sheet_object", { sheetId: sheet, visualization: "kpi", measures: ["Sum(Sales)"] }));
@@ -359,7 +349,7 @@ describe("builder: update_sheet_object", () => {
     assert.equal(props.title, "Keep me");
     assert.deepEqual(props.qHyperCubeDef.qMeasures.map((m) => m.qDef.qDef), ["=Avg(Sales)", "=Count(Sales)"]);
     assert.equal(props.color.mode, "byDimension");
-    // Options are not merged: the legend reverts to the default.
+    // Options are replaced, not merged.
     assert.notEqual(props.legend.show, false);
   });
 
@@ -547,7 +537,7 @@ describe("builder: update keeps null suppression, pivot columns and combo series
       const pc = h.doc.objects.get(pivot.objectId).props.qHyperCubeDef;
       assert.equal(pc.qNoOfLeftDims, 1);
       assert.equal(pc.qDimensions[0].qNullSuppression, true);
-      // Options are not carried over (documented): includeZeros reverts.
+      // Options are not carried over (documented).
       assert.notEqual(pc.qSuppressZero, true);
       const cm = h.doc.objects.get(combo.objectId).props;
       assert.deepEqual(cm.qHyperCubeDef.qMeasures.map((m) => m.qDef.series), [{ type: "bar", axis: 0 }, { type: "line", axis: 1 }]);

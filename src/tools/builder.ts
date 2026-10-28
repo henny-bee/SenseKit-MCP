@@ -21,11 +21,6 @@ import { requireChildOf, indexPropertyTree } from "../qix/objects.js";
 import { saveApp } from "../qix/save.js";
 import type { KeyedLock } from "../core/lock.js";
 
-// The UI-builder layer: create sheets and visualization objects, and — the
-// part that makes it shippable — a validation gate that checks what the
-// engine ACCEPTED will actually render. The engine happily persists a def the
-// client draws as a blank tile; "saved" and "renders" are different claims.
-
 const dimensionsParam = z.array(dimensionInputSchema).optional()
   .describe("Field names, or objects {field|expression|libraryId, label?, sort?, includeNulls?, pivotColumn?} — exactly one of field/expression ('=Year(Date)', a calculated dimension)/libraryId (master dimension)");
 const measuresParam = z.array(measureInputSchema).optional()
@@ -58,9 +53,7 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
         return text(redactSecrets(await validateObject(app, objectId, known)));
       }
       const sheet = await app.getObject(sheetId!);
-      // Independent reads, issued together. One GetFullPropertyTree returns
-      // the sheet's properties AND every object's below it, so the per-object
-      // validation needs no getProperties round trip of its own.
+      // One property tree feeds every child's validation: no per-object round trip.
       const [known, tree, childInfos] = await Promise.all([
         knownVisualizations(qrs, cfg.host), sheet.getFullPropertyTree().catch(() => undefined), sheet.getChildInfos(),
       ]);
@@ -70,7 +63,7 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
       const cells = (props.cells ?? []).map(cellBox);
       const placement = checkCellPlacement(cells, children, props.columns ?? 24, props.rows ?? 12);
       const ctx = gateContext(app);
-      // Objects validate concurrently (bounded); mapPool keeps sheet order.
+      // mapPool keeps sheet order.
       const objects = await mapPool(children, ENGINE_CONCURRENCY, (id) => validateObject(app, id, known, ctx, { propsById }));
       const failing = objects.filter((o) => o.status === "fail").length + placement.filter((f) => f.severity === "fail").length;
       return text(redactSecrets({
@@ -189,15 +182,12 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
       const obj = await app.getObject(objectId);
       const current = await obj.getProperties();
       const viz: string = current.visualization ?? current.qInfo?.qType;
-      // Rebuilding replaces the whole property tree; for a type the builder
-      // does not construct (extensions, maps, containers) that would wipe
-      // everything it doesn't know about. Refuse instead.
+      // Rebuild replaces the whole tree: an unsupported type would lose its properties.
       if (!VIZ_SPECS[viz]) {
         throw new ToolError("VALIDATION_REFUSED", `refusing to update: "${viz}" is not a builder-supported type (${Object.keys(VIZ_SPECS).join(", ")}) — rebuilding it would discard its properties`);
       }
       const isPane = VIZ_SPECS[viz].cube === "filterpane";
-      // Carry over only what was omitted, so an unreadable part the caller
-      // is replacing anyway cannot block the update.
+      // Read only omitted parts: an unreadable part being replaced must not block.
       const carry = async <T>(what: string, read: () => T | Promise<T>): Promise<T> => {
         try { return await read(); } catch (e) {
           throw new ToolError("VALIDATION_REFUSED", `refusing to update: cannot read the current ${what} (${errMsg(e)})`);
@@ -216,16 +206,13 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
       const props = prepared.props;
       props.qInfo = { ...props.qInfo, qId: current.qInfo.qId };
       if (title === undefined) {
-        // Keep a title EXPRESSION ({qStringExpression}) and authored
-        // text-image markdown verbatim rather than flattening them.
+        // Keep title expressions and authored markdown verbatim, not flattened.
         props.title = current.title ?? "";
         if (viz === "text-image" && current.markdown !== undefined) props.markdown = current.markdown;
         if (viz === "action-button" && current.style?.label !== undefined && props.style) props.style.label = current.style.label;
       }
       if (viz === "action-button") {
-        // What a button does is not styling: keep its actions (selections,
-        // variables, set in the client), and its navigation unless
-        // options.navigateTo replaces it.
+        // Actions and navigation are behavior, not styling: carry them over.
         if (Array.isArray(current.actions)) props.actions = current.actions;
         if (options?.navigateTo === undefined && current.navigation) {
           props.navigation = current.navigation;
@@ -235,8 +222,7 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
       if (current.qMetaDef) props.qMetaDef = current.qMetaDef;
       await obj.setProperties(props);
       if (isPane) {
-        // Rebuild the listbox children: destroy-and-recreate is simpler and
-        // safer than diffing them, and children carry no user state.
+        // Recreate listboxes instead of diffing: children carry no user state.
         for (const c of await obj.getChildInfos()) await obj.destroyChild(c.qId);
         for (const lb of buildFilterpaneChildren(prepared.dims)) await obj.createChild(lb);
       }
@@ -300,9 +286,7 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
       const sheet = await app.getObject(sheetId);
       await requireChildOf(sheet, sheetId, objectId);
       await sheet.destroyChild(objectId);
-      // Re-read AFTER destroyChild so the cell edit does not write back a
-      // stale property snapshot. A leftover cell would be an orphan the gate
-      // then flags on every validate_sheet.
+      // Re-read after destroyChild, or setProperties writes back a stale snapshot.
       const props = await sheet.getProperties();
       props.cells = (props.cells ?? []).filter((c) => c.name !== objectId);
       await sheet.setProperties(props);

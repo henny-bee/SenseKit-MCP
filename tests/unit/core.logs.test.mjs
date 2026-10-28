@@ -2,8 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { tailText } from "../../dist/core/logs.js";
 
-// ── tailText ─────────────────────────────────────────────────────────────────
-
 test("tailText returns the last n lines and counts what it dropped", () => {
   const log = Array.from({ length: 500 }, (_, i) => `line ${i + 1}`).join("\n") + "\n";
   const t = tailText(log, 200);

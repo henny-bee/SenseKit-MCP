@@ -6,9 +6,9 @@ test("checkCellPlacement catches unplaced, orphan, off-grid, overlap", () => {
   const f = checkCellPlacement(
     [
       { name: "a", col: 0, row: 0, colspan: 8, rowspan: 4 },
-      { name: "a2", col: 4, row: 2, colspan: 8, rowspan: 4 },  // overlaps a
-      { name: "ghost", col: 0, row: 8, colspan: 4, rowspan: 2 }, // orphan
-      { name: "b", col: 20, row: 10, colspan: 8, rowspan: 4 },   // off-grid (24x12)
+      { name: "a2", col: 4, row: 2, colspan: 8, rowspan: 4 },
+      { name: "ghost", col: 0, row: 8, colspan: 4, rowspan: 2 },
+      { name: "b", col: 20, row: 10, colspan: 8, rowspan: 4 },
     ],
     ["a", "a2", "b", "unplaced"],
     24, 12,

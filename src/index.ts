@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// CLI entry: load config, build the clients and the server, serve stdio.
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { loadConfig, usesProxySession } from "./config.js";
 import { QrsClient } from "./clients/qrs.js";

@@ -1,10 +1,3 @@
-// Shared assets for the finance-close support-agent demo.
-// Two apps: a datamart that publishes revenue_close.qvd, and a dashboard
-// that consumes it. The planted defect is a DOUBLE-LOADED adjustment batch
-// in the dashboard script — the classic month-end close error.
-//
-// Truth:    $605,728,164.79  (normalized 555,728,164.79 + adjustments 50,000,000.00)
-// Planted:  $655,728,164.79  (adjustment batch counted twice)
 import { loadConfig } from "../../dist/config.js";
 import { EngineClient } from "../../dist/clients/engine.js";
 import { QrsClient } from "../../dist/clients/qrs.js";
@@ -47,9 +40,7 @@ LOAD Account, Segment, Region, DocType, Period, Scenario, Amount
 FROM [${QVD}] (qvd);
 `;
 
-// The planted defect: an extra CONCATENATE of the adjustment slice,
-// disguised as a late-batch merge. Sum inflates by exactly the
-// adjustment total ($50M). This is what the agent has to find.
+// Planted defect: adjustment slice loaded twice, inflating Sum by exactly $50M.
 export const DASHBOARD_SCRIPT_PLANTED = `
 // AT Finance Close — Dashboard. Consumes the certified revenue QVD.
 Revenue:

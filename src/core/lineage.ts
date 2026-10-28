@@ -1,4 +1,3 @@
-/** Classify a lineage entry by its discriminator/statement. */
 export function classifyLineage(discriminator: string | undefined, statement: string | undefined): string {
   const s = (discriminator ?? "").toUpperCase();
   const st = (statement ?? "").toUpperCase();

@@ -1,7 +1,3 @@
-// Shared assets for the builder + quality-gate demo.
-// The pitch: an agent can BUILD a Qlik sheet — and, unlike a generic API
-// wrapper, it knows whether what it built will actually render, and it
-// refuses to produce nonsense in the first place.
 export const APP_NAME = "MCP Builder Demo";
 export const SHEET_TITLE = "Regional Sales";
 
@@ -20,7 +16,6 @@ West,Gadget,Feb,95,7
 ];
 `;
 
-// A small, sensible dashboard an analyst would actually ask for.
 export const PANELS = [
   { visualization: "kpi",       title: "Total Sales",     dimensions: [],                    measures: ["Sum(Sales)"] },
   { visualization: "barchart",  title: "Sales by Region", dimensions: ["Region"],            measures: ["Sum(Sales)"] },

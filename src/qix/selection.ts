@@ -1,6 +1,4 @@
-/** Build engine field-value duals for SelectValues. Numeric values (and
- *  numeric-looking strings) get qIsNumeric + qNumber — a text-only qText
- *  against a numeric field silently selects nothing or widens. */
+// qText alone against a numeric field silently selects nothing (or widens).
 export function buildSelectValues(values: Array<string | number>) {
   return values.map((v) => {
     const n = typeof v === "number" ? v : Number(v);

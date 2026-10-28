@@ -1,7 +1,3 @@
-// mekkochart: the client's Mekko (Marimekko) chart. Two dimensions (columns,
-// then the cells within each column) and one measure (cell size). Property
-// set mirrors @nebula.js/sn-mekko-chart (object-properties.js, data.js).
-
 import { clientCube } from "../build.js";
 import type { ChartType } from "./contract.js";
 

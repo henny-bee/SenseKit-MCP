@@ -1,8 +1,4 @@
-/** Small per-process TTL cache for slow, rarely-changing lookups (e.g. the
- *  installed-extension list behind every validation). Stores the PROMISE, so
- *  concurrent callers share one in-flight load; a load that rejects is
- *  evicted, so a transient failure is never cached. `now` is injectable for
- *  tests. */
+// Stores the promise so callers share one load; rejected loads are evicted.
 export class TtlCache<K, V> {
   private entries = new Map<K, { at: number; value: Promise<V> }>();
 

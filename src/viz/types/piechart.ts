@@ -1,6 +1,4 @@
-// piechart: nebula. Its extras were identified from the exact browser
-// TypeError the chart throws without them (captured with a headless client):
-// sn-pie-chart: "Cannot read properties of undefined (reading 'showAsDonut')".
+// Without these extras sn-pie-chart throws reading 'showAsDonut'.
 
 import { buildCube } from "../build.js";
 import type { ChartType } from "./contract.js";

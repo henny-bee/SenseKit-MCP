@@ -1,12 +1,5 @@
 #!/usr/bin/env node
-// Visualization matrix: build ONE of every supported visualization type
-// through the MCP server itself (add_sheet_object), run the validation gate
-// on each, and print a render-readiness report. Also probes the negative
-// paths the gate must catch. Leaves the app "MCP Viz Matrix" on the site so a
-// human can eyeball actual pixels in the hub — the last mile no engine-side
-// check can prove.
-//
-// Env: same as the server; requires QSEOW_ALLOW_MUTATIONS=true.
+// Needs QSEOW_ALLOW_MUTATIONS=true; leaves the app on the site for a visual check.
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
@@ -26,7 +19,7 @@ West,Gadget,Feb,95,7
 ];
 `;
 
-// One spec per supported type: [viz, dims, measures]
+// [viz, dims, measures]
 const MATRIX = [
   ["kpi", [], ["Sum(Sales)"]],
   ["gauge", [], ["Sum(Sales)/2000"]],
@@ -39,7 +32,7 @@ const MATRIX = [
   ["table", ["Region", "Product"], ["Sum(Sales)", "Sum(Qty)"]],
   ["pivot-table", ["Region"], ["Sum(Sales)"]],
   ["listbox", ["Region"], []],
-  ["text-image", [], []],   // authored text only — measures are refused by design
+  ["text-image", [], []],   // measures are refused by design
 ];
 
 const transport = new StdioClientTransport({
@@ -54,7 +47,6 @@ const call = async (name, args = {}) => {
   return JSON.parse(t.startsWith("{") || t.startsWith("[") ? t : JSON.stringify(t));
 };
 
-// Fresh app each run.
 const existing = await call("list_apps", { filter: `name eq '${APP_NAME}'` });
 if (existing.total > 0) await call("delete_app", { appId: existing.items[0].id });
 const app = await call("create_app", { name: APP_NAME, script: SCRIPT, reload: true });
@@ -63,7 +55,6 @@ console.log(`app ${appId} reloaded=${app.reloaded}`);
 const sheet = await call("create_sheet", { appId, title: "Matrix", description: "one of every type" });
 const sheetId = sheet.sheetId;
 
-// ---- build the matrix through the MCP tool, gate validates on creation
 const rows = [];
 for (const [viz, dims, meas] of MATRIX) {
   try {
@@ -77,30 +68,25 @@ for (const [viz, dims, meas] of MATRIX) {
   }
 }
 
-// ---- negative probes: the gate must catch each of these
 const negatives = [];
-// 1. unknown field in a dimension -> refused BEFORE creating
 try {
   await call("add_sheet_object", { appId, sheetId, visualization: "barchart", dimensions: ["Regoin"], measures: ["Sum(Sales)"] });
   negatives.push({ probe: "bad dimension field", result: "NOT CAUGHT (object created)" });
 } catch (e) {
   negatives.push({ probe: "bad dimension field", result: /not in the data model/.test(e.message) ? "refused pre-create ✔" : `unexpected: ${e.message.slice(0, 120)}` });
 }
-// 2. bad measure field -> created, but the gate must FAIL it
 try {
   const r = await call("add_sheet_object", { appId, sheetId, visualization: "kpi", title: "bad measure", measures: ["Sum(Salse)"] });
   negatives.push({ probe: "bad measure field", result: r.validation.status === "fail" ? "gate FAILs it ✔" : `gate said ${r.validation.status} — should fail` });
 } catch (e) {
   negatives.push({ probe: "bad measure field", result: `create threw: ${e.message.slice(0, 120)}` });
 }
-// 3. wrong shape -> refused
 try {
   await call("add_sheet_object", { appId, sheetId, visualization: "piechart", dimensions: ["Region", "Product"], measures: ["Sum(Sales)"] });
   negatives.push({ probe: "shape violation (pie w/ 2 dims)", result: "NOT CAUGHT" });
 } catch (e) {
   negatives.push({ probe: "shape violation (pie w/ 2 dims)", result: /refusing to create/.test(e.message) ? "refused pre-create ✔" : `unexpected: ${e.message.slice(0, 120)}` });
 }
-// 4. unknown visualization type -> gate warns/fails
 try {
   const r = await call("add_sheet_object", { appId, sheetId, visualization: "hologram-chart", measures: ["Sum(Sales)"], dimensions: [] });
   negatives.push({ probe: "unknown viz type", result: r.validation.status !== "pass" ? `gate says ${r.validation.status} ✔` : "gate passed it — should not" });
@@ -108,7 +94,6 @@ try {
   negatives.push({ probe: "unknown viz type", result: `create threw: ${e.message.slice(0, 120)}` });
 }
 
-// ---- whole-sheet validation (placement lint over everything built above)
 const sheetReport = await call("validate_sheet", { appId, sheetId });
 
 console.log("\n=== VIZ MATRIX ===");

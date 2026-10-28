@@ -3,16 +3,11 @@ import { randomBytes } from "node:crypto";
 import { trustedCa, type Config } from "../config.js";
 import { ToolError, errMsg } from "../core/errors.js";
 
-/** Raw HTTPS request outside the QRS client's routing: the engine healthcheck
- *  and the Proxy Service (QPS) REST API live on their own ports. QPS is
- *  certificate-only; the healthcheck follows the configured auth mode.
- *  Socket-level failures retry once on a fresh connection (same rationale as
- *  QrsClient). */
 export async function rawRequest(
   cfg: Config,
   opts: {
     port: number; path: string; method?: string; useCert?: boolean; cookie?: string;
-    /** Error code for a network-level failure (refused, TLS, reset). */
+    /** Error code for network-level failures (refused, TLS, reset). */
     service?: "ENGINE_ERROR" | "PROXY_ERROR";
   },
 ): Promise<{ status: number; body: string }> {

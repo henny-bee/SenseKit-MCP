@@ -1,6 +1,3 @@
-// Developer group: load script read/check/write, reload, and the QRS app
-// lifecycle (create, copy, delete, publish).
-
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { startServer, ok, expectToolError, expectInvalidArgs, APP_ID } from "../helpers/harness.mjs";

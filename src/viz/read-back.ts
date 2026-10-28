@@ -3,16 +3,11 @@ import { numberFormatFromEngine } from "./number-format.js";
 import { ToolError } from "../core/errors.js";
 import type { GenericObjectProperties, HyperCubeDef, NxInlineDimensionDef, NxMeasure, NxSortCriteria } from "../qix/types.js";
 
-/** A hypercube dimension or a qListObjectDef — both carry qDef + qLibraryId. */
 type DimEntry = { qDef?: NxInlineDimensionDef; qLibraryId?: string; qNullSuppression?: boolean };
-
-// ── Reading specs back out of an existing object (update_sheet_object) ──────
 
 const sameCriteria = (a: NxSortCriteria | undefined, b: Record<string, number>) =>
   !!a && Object.keys(b).every((k) => (a[k] ?? 0) === b[k]);
 
-/** A hypercube dimension or qListObjectDef -> DimSpec. Throws when the entry
- *  is neither a field/calculated def nor a master link. */
 export function dimSpecFromDef(entry: DimEntry | undefined, where = "dimension"): DimSpec {
   let out: DimSpec;
   if (entry?.qLibraryId) {
@@ -33,8 +28,6 @@ export function dimSpecFromDef(entry: DimEntry | undefined, where = "dimension")
   return out;
 }
 
-/** Every dimension of a hypercube. In a pivot (qMode "P") the dimensions
- *  after the first qNoOfLeftDims are its columns. */
 export function cubeDimSpecs(hc: Partial<HyperCubeDef>): DimSpec[] {
   const dims = (hc.qDimensions ?? []).map((d, i) => dimSpecFromDef(d, `dimension ${i}`));
   const left = hc.qNoOfLeftDims;
@@ -44,15 +37,12 @@ export function cubeDimSpecs(hc: Partial<HyperCubeDef>): DimSpec[] {
   return dims;
 }
 
-/** The object's data cube: top level for most types, under boxplotDef for a
- *  boxplot. */
 export function cubeDefOf(props: Pick<GenericObjectProperties, "qHyperCubeDef" | "boxplotDef">): Partial<HyperCubeDef> | undefined {
   return props.qHyperCubeDef ?? props.boxplotDef?.qHyperCubeDef;
 }
 
 const OPERATION_OF: Record<string, WaterfallOperation> = { INVERSE: "subtract", SUBTOTAL: "subtotal" };
 
-/** A hypercube measure -> MeasureSpec (expression or link, label, format, color). */
 export function measureSpecFromDef(entry: Partial<NxMeasure> | undefined, where = "measure"): MeasureSpec {
   let out: MeasureSpec;
   if (entry?.qLibraryId) {
@@ -66,8 +56,7 @@ export function measureSpecFromDef(entry: Partial<NxMeasure> | undefined, where 
   }
   const nf = numberFormatFromEngine(entry?.qDef);
   if (nf) out.numberFormat = nf;
-  // bar/line charts keep a measure color in qDef.coloring; the combo chart
-  // client writes qDef.color instead (harvested from a client-authored combo).
+  // The combo chart client writes qDef.color instead of qDef.coloring.
   const comboColor = entry?.qDef?.color as { on?: boolean; paletteColor?: { color?: unknown } } | undefined;
   const color = entry?.qDef?.coloring?.baseColor?.color ?? (comboColor?.on !== false ? comboColor?.paletteColor?.color : undefined);
   if (typeof color === "string" && HEX_COLOR.test(color)) out.color = color;
@@ -75,7 +64,6 @@ export function measureSpecFromDef(entry: Partial<NxMeasure> | undefined, where 
   if (series && typeof series === "object" && SERIES_TYPES.includes(series.type as SeriesType)) {
     out.series = { type: series.type as SeriesType, axis: series.axis === 1 ? "secondary" : "primary" };
   }
-  // bulletchart target, waterfall operation and subtotal.
   const target = entry?.qDef?.target;
   if (typeof target === "string" && target.trim() && target.trim() !== "=") out.target = target;
   const op = OPERATION_OF[String(entry?.qDef?.valueType)];
@@ -85,7 +73,6 @@ export function measureSpecFromDef(entry: Partial<NxMeasure> | undefined, where 
   return out;
 }
 
-/** Dims + measures of a hypercube or listbox object's properties. */
 export function specsFromProps(
   props: Pick<GenericObjectProperties, "qHyperCubeDef" | "qListObjectDef">,
 ): { dimensions: DimSpec[]; measures: MeasureSpec[] } {

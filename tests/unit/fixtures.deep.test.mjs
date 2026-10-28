@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { walkStrings } from "../../dist/core/walk.js";
 import { redactSecrets } from "../../dist/core/redact.js";
 
-// ── deep mode: a real snapshot directory of recorded qProps ──────────────────
+// QPROP_FIXTURE_DIR: optional real-site snapshot of recorded qProps, not shipped.
 
 test("deep fixture sweep (QPROP_FIXTURE_DIR)", { skip: !process.env.QPROP_FIXTURE_DIR }, () => {
   const root = process.env.QPROP_FIXTURE_DIR;

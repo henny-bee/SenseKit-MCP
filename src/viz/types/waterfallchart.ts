@@ -1,9 +1,3 @@
-// waterfallchart: the client's Waterfall chart. No dimensions: each measure
-// is a step that adds, subtracts (valueType INVERSE) or shows the running
-// total (SUBTOTAL), optionally followed by a labelled subtotal bar. Property
-// set mirrors @nebula.js/sn-waterfall (object-properties.js,
-// waterfallchart-properties.js).
-
 import { clientCube } from "../build.js";
 import type { WaterfallOperation } from "../inputs.js";
 import type { ChartType } from "./contract.js";

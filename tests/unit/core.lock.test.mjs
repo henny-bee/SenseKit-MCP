@@ -4,8 +4,6 @@ import { KeyedLock } from "../../dist/core/lock.js";
 
 const tick = () => new Promise((r) => setImmediate(r));
 
-// ── Per-app write serialization ──────────────────────────────────────────────
-
 test("KeyedLock: one key runs one task at a time, in arrival order; other keys do not wait", async () => {
   const lock = new KeyedLock();
   const log = [];

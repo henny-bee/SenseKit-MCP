@@ -1,5 +1,3 @@
-// barchart: the reference nebula chart — every styling option applies.
-
 import { buildCube } from "../build.js";
 import type { ChartType } from "./contract.js";
 

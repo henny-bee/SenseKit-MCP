@@ -1,7 +1,3 @@
-// Ops layer (ships with the admin group): reload forensics, the
-// security-rule audit, and the HTTPS-direct tools (engine_healthcheck, QPS
-// sessions), which run against a loopback HTTPS server on 127.0.0.1.
-
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { startServer, ok, expectToolError, expectInvalidArgs, deepIncludes } from "../helpers/harness.mjs";
@@ -97,7 +93,6 @@ describe("ops: security_rule_audit", () => {
     assert.deepEqual(god.actions, ["Update", "Delete"]);
     assert.equal(god.condition, "true");
     assert.equal(god.comment, "temporary");
-    // Only Security-category rules are requested.
     assert.ok(h.qrs.calls.at(-1).path.includes(encodeURIComponent("category eq 'Security'")));
   });
 
@@ -117,8 +112,6 @@ describe("ops: security_rule_audit", () => {
   });
 });
 
-// ── HTTPS-direct tools, against a loopback HTTPS server ──────────────────────
-
 const HEALTH = {
   version: "12.1477.4", started: "20261001T020000.000+0000", saturated: false,
   mem: { committed: 2048, allocated: 1500, free: 512 }, cpu: { total: 12 },
@@ -126,9 +119,7 @@ const HEALTH = {
   apps: { active_docs: ["a"], loaded_docs: ["a", "b"], in_memory_docs: ["a", "b", "c"], calls: 120, selections: 7 },
   users: { active: 1, total: 3 },
 };
-// Stand-in with ProxySession's surface (ensure / run / invalidate). The real
-// retry logic is covered by tests/unit/clients.proxy-session.test.mjs and the
-// end-to-end jwt test below.
+// Fake ProxySession; retry logic is tested in clients.proxy-session.test.mjs.
 const CREDS = { cookie: "X-Qlik-Session=sess-1", csrfToken: "csrf-1" };
 const fakeSession = { ensure: async () => CREDS, run: async (op) => op(CREDS), invalidate() {} };
 
@@ -161,8 +152,7 @@ describe("ops: engine_healthcheck (loopback HTTPS)", () => {
 
   test("jwt mode: goes through the virtual proxy with the session cookie, no service identity", async () => {
     reply = { status: 200, body: HEALTH };
-    // QSEOW_ROOT_CERT_PATH alone (cfg.ca, no certificate files) is trusted on
-    // the proxy leg too, with TLS verification on.
+    // cfg.ca alone (QSEOW_ROOT_CERT_PATH) must be trusted on the proxy leg too.
     const h = await startServer({ cfg: loopbackConfig(srv.port, { authMode: "jwt", rootCaOnly: true }), deps: { session: fakeSession } });
     try {
       ok(await h.call("engine_healthcheck"));
@@ -265,9 +255,7 @@ describe("ops: network failures on the HTTPS-direct tools", () => {
 });
 
 describe("ops: jwt mode end to end with the real ProxySession (loopback)", () => {
-  // The loopback proxy mints a session per CSRF bootstrap and accepts only
-  // the sessions in `valid` (new ones only while `acceptNew`); anything else
-  // gets `reject` (401 by default).
+  // Proxy accepts only `valid` sessions (new ones while `acceptNew`), else `reject`.
   let srv, minted, valid, reject, acceptNew;
   before(async () => {
     srv = await startLoopbackHttps((req) => {
@@ -288,7 +276,7 @@ describe("ops: jwt mode end to end with the real ProxySession (loopback)", () =>
   async function jwtServer() {
     minted = 0; valid = new Set(); reject = 401; acceptNew = true;
     const cfg = loopbackConfig(srv.port, { authMode: "jwt", rootCaOnly: true });
-    const session = new ProxySession(cfg); // real CSRF bootstrap, over loopback, trusting cfg.ca
+    const session = new ProxySession(cfg);
     const h = await startServer({ cfg, deps: { session } });
     return { h, session };
   }

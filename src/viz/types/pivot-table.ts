@@ -1,5 +1,4 @@
-// pivot-table: qMode 'P' required — a straight cube renders empty. Pivot
-// sorts per dimension, so the cube-level sortByMeasure does not apply.
+// No sortByMeasure: a pivot sorts per dimension.
 
 import { buildCube } from "../build.js";
 import type { ChartType } from "./contract.js";

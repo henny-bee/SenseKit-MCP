@@ -1,11 +1,3 @@
-// treemap: needs qMode "K" (tree mode) and a LEAN, client-shaped property
-// set. Render-verified after mirroring a client-authored treemap harvested
-// from Qlik's shipped Content Monitor app. Its `labels` block is FLAT
-// BOOLEANS (and the key is "leaves", not "leafs"); the nested {auto,show}
-// shape an earlier version guessed made sn-treemap render its error state.
-// Treemap refuses to draw ("This chart cannot be displayed") in a short
-// tile, hence its minimum tile.
-
 import { fieldDef, noEq } from "../inputs.js";
 import { finishDim, finishNulls, finishMeasure, applyOptions } from "../build.js";
 import type { ChartType } from "./contract.js";
@@ -16,15 +8,12 @@ export const treemap: ChartType = {
   minTile: { colspan: 8, rowspan: 8 },
   options: ["colorMode", "showLegend", "showDataLabels", "includeZeros"],
   build: ({ viz, base, dims, meas, applied }) => {
-    // Mirrored from a CLIENT-AUTHORED treemap (Qlik's Content Monitor app).
-    // Two things the generic path got wrong: the cube must be qMode "K"
-    // (tree mode — "S" renders Qlik's error state, the same class of trap as
-    // pivot-table needing "P"), and the shared kitchen-sink property block
-    // injects keys sn-treemap does not expect. Keep this lean and literal.
+    // Keep lean and client-shaped: NEBULA_DEFAULTS keys break sn-treemap.
     return applyOptions({
       ...base,
       showTitles: true, subtitle: "", footnote: "", showDetails: true,
       showDisclaimer: true, disableNavMenu: false,
+      // Flat booleans, key "leaves": a nested {auto,show} shape errors.
       labels: { auto: true, headers: true, overlay: true, leaves: true, values: false },
       legend: { show: false, dock: "auto", showTitle: true },
       color: {
@@ -41,7 +30,7 @@ export const treemap: ChartType = {
           qOtherTotalSpec: {}, qAttributeExpressions: [], qAttributeDimensions: [],
         }, d), d)),
         qMeasures: meas.map((m, i) => finishMeasure({
-          // client stores the expression WITHOUT a leading "="
+          // no leading "=", as the client stores it
           qDef: { qGrouping: "N", qDef: noEq(m.expression ?? ""), qLabel: "", qNumFormat: { qType: "U" }, autoSort: true, cId: `m${i + 1}`, numFormatFromTemplate: true },
           qSortBy: { qSortByNumeric: -1, qSortByLoadOrder: 1 },
           qAttributeExpressions: [], qAttributeDimensions: [], qTrendLines: [],
@@ -50,7 +39,7 @@ export const treemap: ChartType = {
         qSuppressMissing: true,
         qInitialDataFetch: [{ qLeft: 0, qTop: 0, qWidth: 30, qHeight: 3000 }],
         qReductionMode: "N",
-        qMode: "K",                 // tree mode — the actual fix
+        qMode: "K", // tree mode; "S" renders the error state
         qPseudoDimPos: -1, qNoOfLeftDims: -1, qAlwaysFullyExpanded: true,
         qMaxStackedCells: 3000, qShowTotalsAbove: true, qIndentMode: true,
         qSortbyYValue: -1, qColumnOrder: [],

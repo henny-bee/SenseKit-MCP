@@ -1,6 +1,3 @@
-// loadConfig(): environment -> Config, including the root CA that must be
-// trusted in every auth mode (QSEOW_ROOT_CERT_PATH).
-
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, writeFileSync, rmSync } from "node:fs";
@@ -16,8 +13,7 @@ const CA = file("root.pem", "ROOT-CA");
 const CERT = file("client.pem", "CLIENT-CERT");
 const KEY = file("client_key.pem", "CLIENT-KEY");
 
-/** loadConfig() under exactly `vars` (every other QSEOW_* var cleared, no
- *  .env file picked up), restoring process.env afterwards. */
+// EMPTY_ENV keeps a real .env from leaking in.
 function configWith(vars) {
   const saved = { ...process.env };
   for (const k of Object.keys(process.env)) if (k.startsWith("QSEOW_")) delete process.env[k];

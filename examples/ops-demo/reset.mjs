@@ -1,6 +1,5 @@
 #!/usr/bin/env node
-// Remove the planted security rule. The failed-reload app/task stay — a
-// permanently failing nightly task IS the demo state.
+// The failing nightly app/task stay: they are the demo state.
 import { clients, RULE_NAME, findRuleByName } from "./common.mjs";
 
 const { qrs, engine } = clients();

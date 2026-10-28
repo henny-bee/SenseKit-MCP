@@ -1,6 +1,3 @@
-// scatterplot: nebula. Data labels live in a different block (labels.mode)
-// and are not wired; there is no category order to sort by value.
-
 import { buildCube } from "../build.js";
 import type { ChartType } from "./contract.js";
 
@@ -15,8 +12,7 @@ export const scatterplot: ChartType = {
     extras: {
       dataPoint: { auto: true, bubbleSizes: "auto", rangeBubbleSizes: [2, 8], showLabels: false },
       compressionResolution: "auto", navigation: false, colorMode: "primary",
-      // scatter uses AXIS-SPECIFIC reference lines; the generic refLine.refLines
-      // shape leaves it with nothing to iterate and it renders blank silently.
+      // Axis-specific refLines: the generic refLine.refLines shape renders blank.
       refLine: { refLinesX: [], refLinesY: [] },
     },
   }),

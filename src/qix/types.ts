@@ -1,23 +1,8 @@
-// Hand-written types for the subset of the Qlik Engine JSON API (QIX) this
-// server actually calls, and for the property/layout shapes it reads or
-// writes. enigma.js is untyped here (no @types package in the lockfile), so
-// EngineClient casts its handles to these interfaces once, at the boundary.
-//
-// Qlik property trees are OPEN by design: every client and supernova adds its
-// own keys (color, legend, cId, autoSort, ...), and the engine round-trips
-// keys it doesn't understand. The interfaces below type the keys this code
-// touches and keep an index signature for the rest — read through the named
-// keys, never by guessing through the index.
+// Hand-typed QIX subset. Property trees are open: the engine round-trips unknown keys.
 
-/** Open-ended JSON object (engine payloads, chart property blocks). The one
- *  deliberate escape hatch: values are `unknown`, so reads must narrow. */
 export type QJson = Record<string, unknown>;
 
-/** A supernova property block (color, legend, dataPoint, labels, ...). Open:
- *  the builder writes the keys it knows and spreads the rest through. */
 export type QBlock = Record<string, unknown>;
-
-// ── Common ───────────────────────────────────────────────────────────────────
 
 export interface NxInfo { qId: string; qType: string }
 
@@ -53,9 +38,6 @@ export interface NxNumFormat {
 
 export interface NxValidationError { qErrorCode: number; qContext?: string; qExtendedMessage?: string }
 
-// ── Property shapes (what we write with createChild / setProperties) ────────
-
-/** Inline dimension definition (hypercube dimension qDef, or qListObjectDef.qDef). */
 export interface NxInlineDimensionDef {
   qGrouping?: string;
   qFieldDefs?: string[];
@@ -74,7 +56,6 @@ export interface NxDimension {
   [key: string]: unknown;
 }
 
-/** Inline measure definition (hypercube measure qDef). */
 export interface NxInlineMeasureDef {
   qDef?: string;
   qLabel?: string;
@@ -113,8 +94,7 @@ export interface ListObjectDef {
   [key: string]: unknown;
 }
 
-/** A sheet grid cell as stored in sheet properties. Positions are optional
- *  on read (the client omits zeroes); see viz/layout.ts cellBox. */
+/** Positions are optional on read: the client omits zeroes. */
 export interface SheetCell {
   name: string;
   type?: string;
@@ -125,38 +105,31 @@ export interface SheetCell {
   [key: string]: unknown;
 }
 
-/** Generic object properties: charts, sheets, listboxes, session objects. */
 export interface GenericObjectProperties {
   qInfo: { qId?: string; qType: string };
   qMetaDef?: NxMeta;
   visualization?: string;
-  /** A plain string, or a title expression ({ qStringExpression: { qExpr } }). */
   title?: string | { qStringExpression?: { qExpr?: string }; [key: string]: unknown };
   markdown?: string;
   qHyperCubeDef?: HyperCubeDef;
   qListObjectDef?: ListObjectDef;
   qChildListDef?: QJson;
-  // Supernova blocks the builder writes (see viz/props.ts, viz/options.ts).
   color?: QBlock;
   legend?: QBlock;
   dataPoint?: QBlock;
   labels?: QBlock;
   barGrouping?: QBlock;
   orientation?: string;
-  // boxplot: its cube lives under boxplotDef (the client derives the box
-  // measures from it).
+  // Boxplot cube lives here; the client derives the box measures from it.
   boxplotDef?: { qHyperCubeDef?: HyperCubeDef; [key: string]: unknown };
-  // action-button (sn-action-button): navigation after a click, and styling.
   navigation?: { action?: string; sheet?: string; websiteUrl?: string; sameWindow?: boolean; [key: string]: unknown };
   style?: QBlock;
-  // Sheet properties.
   cells?: SheetCell[];
   columns?: number;
   rows?: number;
   [key: string]: unknown;
 }
 
-/** Master measure properties (CreateMeasure / GetProperties). */
 export interface GenericMeasureProperties {
   qInfo: { qId?: string; qType: string };
   qMeasure: {
@@ -173,7 +146,6 @@ export interface GenericMeasureProperties {
   qMetaDef?: NxMeta;
 }
 
-/** Master dimension properties (CreateDimension). */
 export interface GenericDimensionProperties {
   qInfo: { qId?: string; qType: string };
   qDim: {
@@ -186,8 +158,6 @@ export interface GenericDimensionProperties {
   };
   qMetaDef?: NxMeta;
 }
-
-// ── Layout shapes (what we read back with getLayout) ────────────────────────
 
 export interface NxDimensionInfo {
   qFallbackTitle?: string;
@@ -202,7 +172,7 @@ export interface NxMeasureInfo {
   [key: string]: unknown;
 }
 
-/** One cell of a data page. The engine serializes NaN as the string "NaN". */
+/** The engine serializes NaN as the string "NaN". */
 export interface NxCell {
   qText?: string;
   qNum?: number | "NaN";
@@ -227,8 +197,6 @@ export interface ListObjectLayout {
   [key: string]: unknown;
 }
 
-/** Item of a library/app-object list (qMeasureList, qDimensionList,
- *  qAppObjectList). `D` is the shape requested through qData. */
 export interface NxListItem<D = QJson> {
   qInfo: NxInfo;
   qMeta?: NxMeta;
@@ -275,16 +243,11 @@ export interface GenericObjectLayout {
   [key: string]: unknown;
 }
 
-/** Properties for a session object: list/selection/cube definitions are
- *  open-ended request shapes, so only qInfo is fixed. */
 export interface SessionObjectDef {
   qInfo: { qType: string };
   [key: string]: unknown;
 }
 
-// ── Engine methods (enigma.js handles) ──────────────────────────────────────
-
-/** GetFullPropertyTree entry: an object's properties plus its descendants'. */
 export interface ObjectTreeEntry {
   qProperty: GenericObjectProperties;
   qChildren?: ObjectTreeEntry[];
@@ -322,7 +285,7 @@ export interface Field {
   clear(): Promise<boolean>;
 }
 
-/** FieldValue as returned by EvaluateEx: the engine always sends all three. */
+/** EvaluateEx always sends all three fields. */
 export interface EvaluateResult { qText: string; qIsNumeric: boolean; qNumber: number }
 
 export interface CheckExpressionResult { qErrorMsg?: string; qBadFieldNames?: NxRange[]; qDangerousFieldNames?: NxRange[] }
@@ -340,7 +303,6 @@ export interface LineageInfo { qDiscriminator?: string; qStatement?: string }
 
 export interface AppLayout { qTitle?: string; qLastReloadTime?: string; [key: string]: unknown }
 
-/** An open app (enigma Doc handle). */
 export interface Doc {
   getObject(id: string): Promise<GenericObject>;
   createObject(props: GenericObjectProperties): Promise<GenericObject>;
@@ -377,7 +339,6 @@ export interface DocListEntry {
   [key: string]: unknown;
 }
 
-/** The appless Global handle. */
 export interface Global {
   getDocList(): Promise<DocListEntry[]>;
   openDoc(appId: string, user: string, password: string, serial: string, noData: boolean): Promise<Doc>;
@@ -388,7 +349,6 @@ export interface Global {
   }>;
 }
 
-/** enigma.js session (the websocket wrapper). */
 export interface EnigmaSession {
   open(): Promise<Global>;
   close(): Promise<void>;

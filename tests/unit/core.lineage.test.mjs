@@ -2,8 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { classifyLineage } from "../../dist/core/lineage.js";
 
-// ── classifyLineage ──────────────────────────────────────────────────────────
-
 test("classifyLineage covers the discriminator taxonomy", () => {
   assert.equal(classifyLineage("INLINE;", "LOAD * INLINE"), "inline");
   assert.equal(classifyLineage("RESIDENT Revenue", "LOAD"), "resident");

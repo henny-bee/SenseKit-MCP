@@ -2,8 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { numFormatToEngine, numberFormatFromEngine } from "../../dist/viz/number-format.js";
 
-// ── Number formats ───────────────────────────────────────────────────────────
-
 test("numFormatToEngine maps each type to the engine qNumFormat", () => {
   assert.equal(numFormatToEngine({ type: "auto" }), undefined);
   const num = numFormatToEngine({ type: "number" });
@@ -21,7 +19,7 @@ test("numFormatToEngine maps each type to the engine qNumFormat", () => {
   assert.deepEqual([date.qType, date.qFmt, date.qUseThou], ["D", "MMM D, YYYY", 0]); // a comma in a DATE is not a thousands separator
   const custom = numFormatToEngine({ type: "custom", pattern: "#,##0.0 'kg'" });
   assert.equal(custom.isCustomFormatted, true);
-  assert.deepEqual([custom.qNumFormat.qType, custom.qNumFormat.qnDec], ["R", 1]); // decimals read from the pattern
+  assert.deepEqual([custom.qNumFormat.qType, custom.qNumFormat.qnDec], ["R", 1]);
   assert.throws(() => numFormatToEngine({ type: "bogus" }), /unknown numberFormat.type/);
 });
 
@@ -33,7 +31,7 @@ test("numberFormatFromEngine inverts numFormatToEngine (update carries formats o
     const eng = numFormatToEngine(nf);
     assert.deepEqual(numFormatToEngine(numberFormatFromEngine(eng)), eng, `round trip ${nf.type}`);
   }
-  // The builder's default (template-driven) format is "no format", not "U".
+  // The template-driven default "U" means no format.
   assert.equal(numberFormatFromEngine({ qNumFormat: { qType: "U" }, numFormatFromTemplate: true }), undefined);
   assert.equal(numberFormatFromEngine(undefined), undefined);
 });

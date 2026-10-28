@@ -9,7 +9,6 @@ function delays(n, seed = 7) {
 }
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** fn that records concurrency and completion order. */
 function tracked(ms) {
   const t = { inFlight: 0, maxInFlight: 0, completed: [] };
   t.fn = async (item, i) => {

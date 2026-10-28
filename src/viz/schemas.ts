@@ -2,7 +2,6 @@ import { z } from "zod";
 import { HEX_COLOR } from "./inputs.js";
 import { NAVIGATION_ACTIONS } from "./types/contract.js";
 
-// Sheet grid cell, shared by add_sheet_object and move_sheet_object.
 export const positionSchema = z.object({
   col: z.number().int().min(0),
   row: z.number().int().min(0),
@@ -10,10 +9,7 @@ export const positionSchema = z.object({
   rowspan: z.number().int().positive(),
 }).describe("Grid cell (sheet grid is columns x rows, default 24x12)");
 
-// Tool input schemas for the above. Kept beside the normalizers so the MCP
-// contract and the validation rules cannot drift apart. The exactly-one-of
-// rules live in normalizeDims/normalizeMeasures (better error messages than a
-// zod refinement).
+// Exactly-one-of rules live in normalizeDims/Measures: clearer errors than a zod refine.
 const hexColorSchema = z.string().regex(HEX_COLOR, "must be a hex color like #1f77b4");
 
 export const numberFormatSchema = z.object({

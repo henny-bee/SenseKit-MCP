@@ -1,8 +1,3 @@
-// gauge: needs `gaugetype`, `angle`, `autoOrientation`,
-// `paletteProgressColor` and `segmentInfo` — none of which any error
-// message named. Solved by harvesting a client-authored gauge; see
-// scripts/harvest_client_props.mjs.
-
 import { noEq } from "../inputs.js";
 import { finishMeasure } from "../build.js";
 import type { ChartType } from "./contract.js";
@@ -11,11 +6,7 @@ export const gauge: ChartType = {
   name: "gauge",
   spec: { minDims: 0, maxDims: 0, minMeasures: 1, maxMeasures: 1, cube: "hypercube" },
   build: ({ base, meas }) => {
-    // Mirrored from a CLIENT-AUTHORED gauge (created in the Sense client for
-    // exactly this purpose, then harvested). Guessing had failed three times
-    // because the missing properties are ones no error message ever named:
-    // `gaugetype` ("radial"), `angle`, `autoOrientation`, `paletteProgressColor`,
-    // and `segmentInfo` — which earlier attempts had invented as `segments`.
+    // Client-harvested: gaugetype/angle/segmentInfo etc. are silently required.
     return {
       ...base,
       showTitles: true, subtitle: "", footnote: "", showDetails: true,
@@ -35,7 +26,7 @@ export const gauge: ChartType = {
       qHyperCubeDef: {
         qDimensions: [],
         qMeasures: meas.map((m, i) => finishMeasure({
-          // client stores the expression WITHOUT a leading "="
+          // no leading "=", as the client stores it
           qDef: {
             qTags: [], qGrouping: "N", qDef: noEq(m.expression ?? ""),
             qNumFormat: { qType: "U", qnDec: 10, qUseThou: 0 }, qAccumulate: 0,

@@ -1,18 +1,5 @@
 #!/usr/bin/env node
-// Builder + quality-gate demo, validated end to end.
-//
-// Three claims, each asserted:
-//   1. An agent can build a working sheet from a plain-language brief.
-//   2. The server REFUSES to build nonsense (bad field, wrong shape) instead
-//      of persisting it and letting a user discover it.
-//   3. What it does build is checked for RENDERABILITY — the engine accepts
-//      definitions the client draws blank, and the gate catches those.
-//
-// Also demonstrates the analytics trust envelope: every returned number
-// carries its selection context, and unknown fields are warned about rather
-// than silently returning 0.
-//
-// Idempotent: recreates the app each run. Requires QSEOW_ALLOW_MUTATIONS=true.
+// Needs QSEOW_ALLOW_MUTATIONS=true; recreates the app each run.
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { APP_NAME, SHEET_TITLE, SCRIPT, PANELS, TOTAL_SALES } from "./common.mjs";
@@ -46,7 +33,6 @@ const ok = (label, cond, detail = "") => {
   if (!cond) { console.error("   ASSERTION FAILED"); process.exit(1); }
 };
 
-// ── 1. Build the sheet from the brief ────────────────────────────────────────
 console.log(`${stamp()} STEP 1 — create the app and load data`);
 const existing = await call("list_apps", { filter: `name eq '${APP_NAME}'` });
 if (existing.total > 0) await call("delete_app", { appId: existing.items[0].id });
@@ -61,7 +47,6 @@ for (const p of PANELS) {
     `gate=${r.validation.status}`);
 }
 
-// ── 2. The gate refuses nonsense BEFORE it reaches the app ───────────────────
 console.log(`${stamp()} STEP 3 — the gate refuses what an API wrapper would happily save`);
 await refuses("misspelled dimension field is refused pre-create", "add_sheet_object",
   { appId: app.appId, sheetId: sheet.sheetId, visualization: "barchart", dimensions: ["Regoin"], measures: ["Sum(Sales)"] },
@@ -70,7 +55,6 @@ await refuses("impossible chart shape is refused pre-create", "add_sheet_object"
   { appId: app.appId, sheetId: sheet.sheetId, visualization: "piechart", dimensions: ["Region", "Product"], measures: ["Sum(Sales)"] },
   /refusing to create/i);
 
-// A bad MEASURE is the nastier case: Qlik accepts it and renders 0.
 const bad = await call("add_sheet_object", {
   appId: app.appId, sheetId: sheet.sheetId, visualization: "kpi",
   title: "Bad KPI (deliberate)", measures: ["Sum(Salse)"],
@@ -79,7 +63,6 @@ ok("misspelled measure field is caught by the gate", bad.validation.status === "
   bad.validation.findings[0]?.message.slice(0, 110));
 console.log(`${stamp()}   ↑ Qlik itself would render this as 0 with no error — that is the trap`);
 
-// ── 3. Whole-sheet verdict, then clean up the deliberate failure ─────────────
 console.log(`${stamp()} STEP 4 — validate the whole sheet`);
 const dirty = await call("validate_sheet", { appId: app.appId, sheetId: sheet.sheetId });
 ok("sheet verdict is FAIL while the bad object exists", dirty.verdict === "FAIL",
@@ -93,7 +76,6 @@ const clean = await call("validate_sheet", { appId: rebuilt.appId, sheetId: shee
 ok("clean sheet verdict is PASS", clean.verdict === "PASS", `${clean.objectCount} objects, 0 findings`);
 ok("no placement problems", clean.placementFindings.length === 0);
 
-// ── 4. Trust envelope on the numbers themselves ──────────────────────────────
 console.log(`${stamp()} STEP 5 — the numbers carry their own context`);
 const total = await call("evaluate_expression", { appId: rebuilt.appId, expression: "Sum(Sales)" });
 ok("value correct", Number(total.value) === TOTAL_SALES, String(total.value));

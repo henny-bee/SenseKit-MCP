@@ -1,37 +1,16 @@
-// The contract every chart type implements. One file per type under
-// viz/types/, registered in viz/types/index.ts: shape limits, cube kind, tile
-// size, which styling options it honours, and its property builder.
-
 import type { GenericObjectProperties } from "../../qix/types.js";
 import type { DimSpec, MeasureSpec } from "../inputs.js";
-
-// ── Visualization shape specs (builder + validation gate) ────────────────────
-// What each built-in visualization needs to actually render. Derived from the
-// object model and verified against a live engine by scripts/viz_matrix.mjs —
-// a shape the engine accepts but the client renders blank is exactly the bug
-// class the validation gate exists to catch.
 
 export interface VizSpec {
   minDims: number; maxDims: number;
   minMeasures: number; maxMeasures: number;
-  // filterpane: a container with no data cube of its own — one listbox child
-  // per dimension, each with its own qListObjectDef.
+  // filterpane: no cube of its own; one listbox child per dimension.
   cube: "hypercube" | "listobject" | "none" | "filterpane";
   pivot?: boolean; // qMode 'P' required — a straight cube renders empty
-  /** false = the built object has NOT been proven to paint pixels in a real
-   *  browser client (see scripts/viz_matrix.mjs + the headless render proof).
-   *  Absent means verified. */
+  /** false = not proven to paint in a browser client; absent = verified. */
   renderVerified?: boolean;
 }
 
-// ── Styling options ──────────────────────────────────────────────────────────
-// Chart-level styling an agent can ask for. Each option is applied only to
-// the types whose supernova reads the block it writes; anything else is
-// dropped and REPORTED (notes), never silently swallowed — an agent that asked
-// for a legend on a KPI should hear that it got none.
-//
-// NOT render-verified: these blocks follow the client's documented property
-// shapes but have not yet been through scripts/render_proof.mjs.
 export type ColorMode = "auto" | "single" | "byDimension" | "byMeasure";
 
 export interface VizOptions {
@@ -42,32 +21,24 @@ export interface VizOptions {
   orientation?: "vertical" | "horizontal";
   stacked?: boolean;
   sortByMeasure?: "asc" | "desc";
-  /** false = the client's "Include zero values" unticked (qSuppressZero). */
+  /** false = qSuppressZero ("Include zero values" unticked). */
   includeZeros?: boolean;
-  /** action-button: where a click navigates (the client's "Navigation"). */
   navigateTo?: NavigateTo;
 }
 
-/** Navigation actions the action-button supports, named as the client
- *  stores them (navigation.action). */
+// Named exactly as the client stores navigation.action.
 export const NAVIGATION_ACTIONS = ["none", "goToSheet", "nextSheet", "prevSheet", "firstSheet", "lastSheet", "openWebsite"] as const;
 export type NavigationAction = typeof NAVIGATION_ACTIONS[number];
 
 export interface NavigateTo {
   action: NavigationAction;
-  /** goToSheet: the target sheet id. */
   sheetId?: string;
-  /** openWebsite: http(s) or mailto URL. */
   url?: string;
-  /** openWebsite: open in the same tab instead of a new one. */
   sameWindow?: boolean;
 }
 
-/** Option keys a chart type can honour (`color` follows `colorMode`). */
 export type OptionKey = Exclude<keyof VizOptions, "color">;
 
-/** Everything a builder gets: normalized specs, the options already filtered
- *  to this type, and the base props ({ qInfo, visualization, title }). */
 export interface BuildInput {
   viz: string;
   title: string | undefined;
@@ -78,25 +49,17 @@ export interface BuildInput {
   measureColors: boolean;
 }
 
-/** One chart type. Adding a type = one file exporting this, plus one line in
- *  viz/types/index.ts (registry order is the order tools list types in). */
 export interface ChartType {
   name: string;
   spec: VizSpec;
-  /** Smallest auto-placed tile the type draws in (default 8x4). */
   minTile?: { colspan: number; rowspan: number };
-  /** Rendered by a nebula.js supernova: gets NEBULA_DEFAULTS, and the gate
-   *  checks for those blocks. */
+  /** Gets NEBULA_DEFAULTS; the gate checks those blocks exist. */
   nebula?: boolean;
-  /** Styling options this type honours; anything else is reported as ignored. */
   options?: readonly OptionKey[];
-  /** With "colorMode" in options: the modes that mean something here (all
-   *  four when absent). Any other mode is reported as ignored. */
+  /** Absent = all four modes. */
   colorModes?: readonly ColorMode[];
-  /** A shape limit the min/max ranges cannot express (for example "one
-   *  measure when there is a dimension"); returns the reason it fails. */
+  /** Returns why a shape fails that min/max ranges cannot express. */
   shapeRule?(nDims: number, nMeasures: number): string | undefined;
-  /** Per-measure colors (qDef.coloring.baseColor) are meaningful. */
   measureColors?: boolean;
   build(input: BuildInput): GenericObjectProperties;
 }

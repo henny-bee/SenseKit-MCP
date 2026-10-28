@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// Plant the risky custom security rule for the security_rule_audit beat.
-// Idempotent. Undo with reset.mjs.
 import { clients, RISKY_RULE, RULE_NAME, findRuleByName } from "./common.mjs";
 
 const { qrs, engine } = clients();

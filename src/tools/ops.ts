@@ -49,22 +49,19 @@ export function registerOpsTools(
         stopTime: er.stopTime,
         durationMs: er.duration,
         executingNode: er.executingNodeName,
-        // The detail timeline (queued -> started -> finished/error messages)
-        // often names the failure even when the script log is unavailable.
         details: (er.details ?? []).map((d) => ({ at: d.detailCreatedDate, type: d.detailsType, message: scrubString(String(d.message ?? "")) })),
       };
       const fileRef: string | undefined = er.fileReferenceID;
       if (!fileRef || fileRef === NIL_GUID) {
         return text({ ...summary, log: null, note: "No script log stored for this execution." });
       }
-      // Two-step QRS download: stage the log behind a temp GUID, then fetch it.
-      // QRS answers either a bare GUID string or { value: GUID } depending on version.
+      // QRS returns a bare GUID string or { value: GUID } depending on version.
       const staged = await qrs.get<string | { value?: string } | undefined>(`/qrs/reloadtask/${taskId}/scriptlog?fileReferenceId=${fileRef}`);
       const tempGuid = typeof staged === "string" ? staged : staged?.value;
       if (!tempGuid) return text({ ...summary, log: null, note: `scriptlog staging returned no GUID: ${JSON.stringify(staged).slice(0, 200)}` });
       const logText = await qrs.get<string>(`/qrs/download/reloadtask/${tempGuid}/scriptlog.txt`);
       const tail = tailText(typeof logText === "string" ? logText : JSON.stringify(logText), tailLines ?? 200);
-      // Reload logs echo script statements — a credential egress path.
+      // Reload logs echo script statements, credentials included.
       return text({ ...summary, log: { totalLines: tail.totalLines, droppedLeadingLines: tail.dropped, lines: tail.lines.map(scrubString) } });
     },
   );
@@ -78,8 +75,7 @@ export function registerOpsTools(
       annotations: { ...READ, idempotentHint: true },
     },
     async () => {
-      // Trailing slash matters: the proxy 301s `/engine/healthcheck` to the
-      // slash-terminated form (verified live), and redirects drop the auth.
+      // Trailing slash required: the proxy 301s without it and redirects drop auth.
       const check = async (cookie?: string) => {
         const res = await rawRequest(cfg, cookie !== undefined
           ? { port: cfg.proxyPort, path: `${vpPath(cfg)}/engine/healthcheck/`, cookie, service: "ENGINE_ERROR" }
@@ -90,8 +86,6 @@ export function registerOpsTools(
         }
         return res.body;
       };
-      // jwt/windows mode: through the proxy on the session cookie; a 401/403
-      // there re-bootstraps the session and retries once (ProxySession.run).
       const body = usesProxySession(cfg)
         ? await session!.run((creds) => check(creds.cookie))
         : await check();
@@ -141,11 +135,7 @@ export function registerOpsTools(
     },
   );
 
-  // ── QPS session tools ──────────────────────────────────────────────────────
-  // The Proxy Service REST API (:4243) authenticates with the client
-  // certificate ONLY — there is no JWT/virtual-proxy route to it. These tools
-  // register whenever certificate material is configured, in either auth mode,
-  // and are absent otherwise so tools/list stays honest.
+  // QPS REST is certificate-only (no JWT route): register only with a cert.
   if (cfg.cert) {
     server.registerTool(
       "list_user_sessions",
@@ -205,7 +195,7 @@ export function registerOpsTools(
           if (res.status >= 400) {
             throw new ToolError(httpErrorCode(res.status, "PROXY_ERROR"), `QPS delete sessions -> ${res.status}: ${res.body.slice(0, 300)}`, { status: res.status });
           }
-          // Observed live: no-session users yield a literal `null` body.
+          // A user with no sessions yields a literal `null` body.
           const removed = res.body ? JSON.parse(res.body) : null;
           return text({
             user: `${directory}\\${userId}`,

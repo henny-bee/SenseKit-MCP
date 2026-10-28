@@ -1,10 +1,4 @@
-// combochart: nebula, one dimension. Series and per-measure colors mirror a
-// CLIENT-AUTHORED combo chart (harvested 2026-10 from a QSEoW site): the
-// client stores each measure's drawing as qDef.series {type, axis: 0|1} and
-// its color as qDef.color {on, mode, paletteColor} — not the qDef.coloring
-// the bar and line charts read — and a chart that uses the secondary axis
-// carries a two-entry measureAxes block (near, far). Plain inputs still get
-// the render-verified buildCube definition unchanged.
+// The combo client stores colors in qDef.color, not the bar/line qDef.coloring.
 
 import { buildCube } from "../build.js";
 import type { ChartType } from "./contract.js";
@@ -25,8 +19,7 @@ export const combochart: ChartType = {
         if (m.color) measures[i].qDef.color = { on: true, mode: "primary", paletteColor: { index: -1, color: m.color, alpha: 1 } };
       });
     }
-    // Once any measure names a series, every measure gets one, so the chart
-    // never mixes explicit series with the client's own defaults.
+    // One explicit series means all get one: never mix with client defaults.
     if (input.meas.some((m) => m.series)) {
       input.meas.forEach((m, i) => {
         measures[i].qDef.series = { type: m.series?.type ?? "bar", axis: m.series?.axis === "secondary" ? 1 : 0 };

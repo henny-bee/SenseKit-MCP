@@ -1,7 +1,4 @@
-// histogram: the client's Histogram. One numeric dimension and no measures:
-// the client bins the values (bins block, automatic by default) and counts
-// them. Property set mirrors @nebula.js/sn-histogram (object-properties.js,
-// binning-defaults.js).
+// No measures: the client bins and counts the dimension's values.
 
 import { clientCube } from "../build.js";
 import type { ChartType } from "./contract.js";

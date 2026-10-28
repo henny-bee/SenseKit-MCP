@@ -1,8 +1,4 @@
-// boxplot: the client's Box plot. Its cube lives under boxplotDef, not at the
-// top level: the client derives the box and whisker measures from it. The
-// property set mirrors @nebula.js/sn-boxplot (boxplot-object-properties.js).
-// dimensions[0] is what each point is (for example Customer); the optional
-// dimensions[1] gives one box per value (for example Year).
+// Cube lives under boxplotDef: the client derives the box/whisker measures from it.
 
 import { clientCube } from "../build.js";
 import type { ChartType } from "./contract.js";

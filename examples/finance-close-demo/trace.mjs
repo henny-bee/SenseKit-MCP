@@ -1,8 +1,5 @@
 #!/usr/bin/env node
-// Timed validation of the RUNBOOK trace: executes the exact 8-step tool
-// sequence an agent runs against the PLANTED state, asserts every expected
-// value, and prints a transcript (the video script's ground truth).
-// Requires: plant.mjs state, server env vars, QSEOW_ALLOW_MUTATIONS=true.
+// Run after plant.mjs; needs QSEOW_ALLOW_MUTATIONS=true.
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { DASHBOARD_SCRIPT_CLEAN, MEASURE_TITLE, TRUTH, PLANTED } from "./common.mjs";
@@ -59,9 +56,7 @@ console.log(`${stamp()}   KPI object ${objHit.objectId} on sheet "${objHit.sheet
 
 console.log(`${stamp()} STEP 6 — lineage (the app -> source hop)`);
 const lineage = await call("get_app_lineage", { appId: dash.id });
-// The engine DE-DUPLICATES lineage sources: a file loaded twice appears
-// once. Lineage answers "what feeds this app" (one certified QVD, no side
-// doors); the double-load itself shows up in the script (step 7).
+// Engine de-dupes lineage sources; the double-load only shows in the script.
 const qvdSources = lineage.filter((l) => l.kind === "qvd");
 console.log(`${stamp()}   sources: ${lineage.map((l) => l.kind).join(",")} — single certified QVD, no side feeds`);
 if (qvdSources.length < 1) { console.error("expected the QVD in lineage"); process.exit(1); }

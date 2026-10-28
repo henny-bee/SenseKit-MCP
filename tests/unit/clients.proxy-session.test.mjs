@@ -1,6 +1,3 @@
-// ProxySession (jwt mode): session reuse, retry-once on a rejected session,
-// and the stale-session rule. Bootstrap and clock are injected, so no socket.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ProxySession, sessionRejection, STALE_SESSION_MIN_AGE_MS } from "../../dist/clients/proxy-session.js";
@@ -9,7 +6,6 @@ import { ToolError } from "../../dist/core/errors.js";
 const cfg = { host: "qlik.example.invalid", proxyPort: 443, vpPrefix: "jwt", jwt: "a.b.c", tlsVerify: true };
 const http = (status) => new ToolError(status === 404 ? "NOT_FOUND" : "AUTH_ERROR", `QRS GET /qrs/about -> ${status}: no`, { status, method: "GET", path: "/qrs/about" });
 
-/** A session with a counting bootstrap and a controllable clock. */
 function session() {
   const clock = { t: 1_000_000 };
   let n = 0;
@@ -20,7 +16,6 @@ function session() {
   return { s, clock };
 }
 
-/** An op that fails with the given errors in turn, then succeeds; records the cookies it saw. */
 function op(...failures) {
   const seen = [];
   const fn = async (creds) => {
@@ -36,16 +31,15 @@ test("sessionRejection: classifies proxy session rejections only", () => {
   assert.deepEqual(sessionRejection(http(401)), { status: 401 });
   assert.deepEqual(sessionRejection(http(403)), { status: 403 });
   assert.equal(sessionRejection(http(404)), undefined);
-  // a forms-login proxy redirects a dead session to its login page: treated as a 401
+  // forms-login proxies redirect a dead session to the login page: a 401
   assert.deepEqual(sessionRejection(http(302)), { status: 401 });
   assert.equal(sessionRejection(new ToolError("QRS_ERROR", "x", { status: 500 })), undefined);
   // engine websocket upgrade: status only in the message
   assert.deepEqual(sessionRejection(new ToolError("AUTH_ERROR", "engine session open failed: Unexpected server response: 401")), { status: 401 });
   assert.equal(sessionRejection(new ToolError("AUTH_ERROR", "CSRF bootstrap: no qlik-csrf-token response header")), undefined);
-  // engine socket closed before the session opened
+  // socket closed before the session opened: rejection without a status
   assert.deepEqual(sessionRejection(new ToolError("ENGINE_ERROR", "engine session open failed: socket closed")), {});
   assert.equal(sessionRejection(new ToolError("ENGINE_ERROR", "openDoc(x) failed: App not found")), undefined);
-  // plain errors are never treated as session problems
   assert.equal(sessionRejection(Object.assign(new Error("x"), { details: { status: 401 } })), undefined);
   assert.equal(sessionRejection("401"), undefined);
 });

@@ -1,8 +1,3 @@
-// Hand-written shapes for the QRS (Repository Service) entities this server
-// reads. QRS entities are large and version-dependent; each interface types
-// the fields a tool actually maps and keeps an index signature for the rest
-// (they are passed through redaction untouched).
-
 export interface QrsUserRef { userDirectory?: string; userId?: string; [key: string]: unknown }
 
 export interface QrsEntity { id: string; name?: string; [key: string]: unknown }

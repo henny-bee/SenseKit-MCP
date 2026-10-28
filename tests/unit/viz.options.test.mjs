@@ -2,8 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { resolveVizOptions } from "../../dist/viz/options.js";
 
-// ── Options applicability ────────────────────────────────────────────────────
-
 test("resolveVizOptions: inapplicable options are dropped and reported", () => {
   const r = resolveVizOptions("kpi", { showLegend: true, orientation: "horizontal", color: "#123456" }, [], [{ expression: "x", color: "#fff" }]);
   assert.deepEqual(r.applied, {});

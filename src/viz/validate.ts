@@ -8,15 +8,9 @@ import { cubeDefOf } from "./read-back.js";
 import { NEBULA_CHART_TYPES } from "./props.js";
 import type { Doc, GenericObject, GenericObjectProperties } from "../qix/types.js";
 
-// ── Validation gate ──────────────────────────────────────────────────────────
-
-/** Per-gate-run memo: each master list (measures, dimensions) is fetched at
- *  most once per call — and only if some object actually links to that kind
- *  — not once per object, when a sheet full of library-linked charts is
- *  checked. Safe under concurrent validation: the PROMISE is memoized. */
+// Per-gate-run memo of the PROMISE, so concurrent validations share one fetch.
 export interface GateContext {
   masterIds: (kind: MasterKind) => Promise<Map<string, string>>;
-  /** The app's sheet ids, for buttons that navigate to a sheet. */
   sheetIds: () => Promise<Set<string>>;
 }
 export function gateContext(app: Doc): GateContext {
@@ -40,11 +34,6 @@ export type ObjectVerdict = {
   status: "pass" | "warn" | "fail"; findings: VizFinding[];
 };
 
-/** Validate one object's layout the way a renderer would consume it. */
-/** Round trips a caller can save: `handle` when it already holds the object
- *  (it just created or rewrote it) skips getObject; `propsById` (from one
- *  GetFullPropertyTree of the sheet) skips getProperties for the object and
- *  any filterpane children. */
 export interface PreFetched {
   handle?: GenericObject;
   propsById?: Map<string, GenericObjectProperties>;
@@ -65,8 +54,7 @@ export async function validateObject(
     if (visualization && !knownViz.has(visualization)) {
       findings.push({ severity: "fail", message: `visualization "${visualization}" is neither a built-in nor an installed extension — renders as "Invalid visualization"` });
     }
-    // A button whose target sheet was deleted (or never set) does nothing
-    // when clicked; the engine has no opinion about it.
+    // The engine accepts a missing target sheet; the click just does nothing.
     const nav = prop.navigation;
     if (visualization === "action-button" && (nav?.action === "goToSheet" || nav?.action === "goToSheetById")) {
       if (typeof nav.sheet !== "string" || nav.sheet === "") {
@@ -80,9 +68,7 @@ export async function validateObject(
       findings.push({ severity: "warn", message: `${visualization} is not render-verified: the engine accepts it and it evaluates, but it has not been proven to paint in a browser client with generically-built properties — check it visually before shipping it to users` });
     }
 
-    // A dangling qLibraryId persists without complaint and draws an error
-    // tile. Checked against the app's master list rather than inferred from
-    // qError, which the engine does not raise consistently for missing links.
+    // Check against the master list: qError is unreliable for dangling links.
     const cubeDef = cubeDefOf(prop);
     const links: Array<{ where: string; kind: "measure" | "dimension"; id: string }> = [];
     (cubeDef?.qDimensions ?? []).forEach((d, i) => { if (d?.qLibraryId) links.push({ where: `dimension ${i}`, kind: "dimension", id: d.qLibraryId }); });
@@ -106,9 +92,6 @@ export async function validateObject(
       if (hc.qSize && hc.qSize.qcy === 0 && (hc.qDimensionInfo?.length || hc.qMeasureInfo?.length)) {
         findings.push({ severity: "warn", message: "hypercube computes but returns 0 rows — renders as an empty chart under current selections/data" });
       }
-      // Nebula supernovas throw on missing default property blocks and render
-      // BLANK while the engine reports a perfectly healthy hypercube. Verified
-      // live: without these, 8 of 12 built-in types draw nothing.
       if (visualization && NEBULA_CHART_TYPES.has(visualization)) {
         const missing = ["color", "legend", "dataPoint", "gridLine", "tooltip"].filter((k) => prop[k] === undefined);
         if (missing.length) {
@@ -123,9 +106,6 @@ export async function validateObject(
       if (vspec && vspec.cube === "hypercube") {
         findings.push(...checkVizShape(visualization!, (hc.qDimensionInfo ?? []).length, (hc.qMeasureInfo ?? []).length));
       }
-      // Expression-level validation on inline defs. Library-linked entries
-      // carry no inline qDef.qDef / qFieldDefs and are skipped here — their
-      // definitions live in the master item (covered by the link check).
       for (const [i, m] of (cubeDef?.qMeasures ?? []).entries()) {
         const def: string | undefined = m?.qLibraryId ? undefined : m?.qDef?.qDef;
         if (def) {
@@ -155,9 +135,7 @@ export async function validateObject(
     }
 
     if (vspec?.cube === "filterpane") {
-      // A filterpane has no cube of its own — its data lives in its listbox
-      // children, so validate those (field errors, dangling links) and lift
-      // their findings onto the pane, which is what the sheet shows.
+      // A filterpane's data lives in its listbox children: lift their findings.
       const kids = await obj.getChildInfos();
       if (!kids.length) findings.push({ severity: "fail", message: "filterpane has no listbox children — it renders an empty frame" });
       for (const k of kids) {
@@ -174,17 +152,11 @@ export async function validateObject(
   return { objectId, visualization, title, status, findings };
 }
 
-// Sense client built-ins beyond the builder's supported set.
 const CLIENT_BUILTINS = ["filterpane", "map", "histogram", "waterfallchart", "boxplot", "distributionplot", "mekkochart", "bulletchart", "sn-grid-chart", "action-button", "container", "qlik-word-cloud"];
 
-/** Installed extensions change on a deploy, not between two tool calls: one
- *  QRS round trip per site per 5 minutes instead of one per validation. */
 const EXTENSION_TTL_MS = 5 * 60_000;
 const extensionCache = new TtlCache<string, string[]>(EXTENSION_TTL_MS);
 
-/** Built-ins + installed extensions. `siteKey` (the QSEoW host) keys the
- *  extension cache, so two sites never share a list. A failed QRS lookup is
- *  not cached: it falls back to built-ins only for this call. */
 export async function knownVisualizations(qrs: QrsClient, siteKey: string): Promise<Set<string>> {
   const known = new Set(Object.keys(VIZ_SPECS));
   for (const v of CLIENT_BUILTINS) known.add(v);
@@ -192,6 +164,6 @@ export async function knownVisualizations(qrs: QrsClient, siteKey: string): Prom
     const ext = await extensionCache.get(siteKey, async () =>
       (await qrs.get<Array<{ name: string }>>("/qrs/extension/full")).map((e) => e.name));
     for (const name of ext) known.add(name);
-  } catch { /* extensions unavailable (e.g. narrow identity) — built-ins only */ }
+  } catch { /* extensions unavailable: built-ins only */ }
   return known;
 }

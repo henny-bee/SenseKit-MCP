@@ -1,13 +1,8 @@
-// Master-item governance (developer group, all mutating): create master
-// measures/dimensions with engine pre-flight, and delete them only when no
-// object still links to them (unless forced).
-
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { startServer, ok, expectToolError, expectInvalidArgs } from "../helpers/harness.mjs";
 import { seedApp } from "../helpers/seed.mjs";
 
-/** Run a refusal and prove nothing was persisted. */
 async function refusedWithoutSideEffects(h, name, args, expectation) {
   const measures = h.doc.measures.size, dimensions = h.doc.dimensions.size, saves = h.doc.saves;
   const e = expectToolError(await h.callApp(name, args), expectation);

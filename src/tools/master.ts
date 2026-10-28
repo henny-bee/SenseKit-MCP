@@ -13,14 +13,6 @@ import type { KeyedLock } from "../core/lock.js";
 import { numFormatToEngine, type EngineNumFormat } from "../viz/number-format.js";
 import { numberFormatSchema } from "../viz/schemas.js";
 
-// Master-item governance: create and retire the app's governed measures and
-// dimensions. Charts link to master items by qLibraryId, never by title — so
-// deleting one that is still linked leaves every referencing chart drawing an
-// error tile, with nothing in the engine to warn you. delete_master_item finds
-// the links first and refuses unless forced.
-//
-// All three tools are mutations and register only with QSEOW_ALLOW_MUTATIONS.
-
 export function registerMasterTools(server: McpServer, engine: EngineClient, cfg: Config, writes: KeyedLock): void {
   if (!cfg.allowMutations) return;
 
@@ -43,8 +35,7 @@ export function registerMasterTools(server: McpServer, engine: EngineClient, cfg
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
     },
     writes.byApp(async ({ appId, title, expression, label, description, tags, numberFormat }) => {
-      // Master measures are stored WITHOUT the leading "=" (as the client
-      // writes them); evaluate_master_measure evaluates this string as-is.
+      // Stored without the leading "=", as the client writes them.
       const expr = expression.trim().replace(/^=/, "").trim();
       if (!expr) throw new ToolError("INVALID_INPUT", "refusing to create: empty expression");
       let nf: EngineNumFormat | undefined;
@@ -54,9 +45,7 @@ export function registerMasterTools(server: McpServer, engine: EngineClient, cfg
         throw new ToolError("INVALID_INPUT", `refusing to create: ${errMsg(e)}`);
       }
       const app = await engine.app(appId);
-      // Stricter than the chart builder on purpose: a master measure is the
-      // governed definition every chart inherits, so an unknown field (which
-      // silently evaluates to 0) is refused here, not merely flagged.
+      // Stricter than the builder on purpose: unknown fields are refused, not flagged.
       const warnings = await expressionWarnings(app, expr);
       if (warnings.length) throw new ToolError("VALIDATION_REFUSED", `refusing to create: ${warnings.join("; ")}`, { expression: expr, warnings });
       const clash = titleTaken((await masterItems(app, ["measure"])).measures, title);
@@ -109,9 +98,7 @@ export function registerMasterTools(server: McpServer, engine: EngineClient, cfg
       if (clash) throw new ToolError("CONFLICT", `refusing to create: a master dimension titled "${title}" already exists (${clash})`, { existingId: clash });
 
       const drill = fields.length > 1;
-      // A single dimension shows its label (default: the master title, as
-      // the client does). A drill-down shows the CURRENT level's label, so
-      // each level keeps its field name; `label` only renames the top level.
+      // Drill-down shows the current level's label: `label` renames only the top level.
       const labels = drill
         ? fields.map((f, i) => (i === 0 && label !== undefined ? label : f.startsWith("=") ? "" : f))
         : [label ?? title];

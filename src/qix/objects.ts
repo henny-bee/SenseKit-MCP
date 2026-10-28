@@ -1,5 +1,3 @@
-// Engine object walks: sheets, sheet ownership, master-item references.
-
 import { walkStrings } from "../core/walk.js";
 import { mapPool, ENGINE_CONCURRENCY } from "../core/pool.js";
 import { ToolError } from "../core/errors.js";
@@ -25,17 +23,14 @@ export async function sheetList(app: Doc): Promise<Array<{ sheetId: string; titl
   }
 }
 
-/** sheetId -> {title}; objectId -> owning sheet. Built once per call that
- *  needs ownership annotation. */
 export async function objectToSheetMap(app: Doc): Promise<Map<string, { sheetId: string; sheetTitle: string }>> {
   const map = new Map<string, { sheetId: string; sheetTitle: string }>();
   const sheets = await sheetList(app);
-  // Sheets are read concurrently, but applied in sheet order so an object
-  // listed under two sheets resolves exactly as the sequential walk did.
+  // Apply in sheet order so an object listed under two sheets resolves stably.
   const children = await mapPool(sheets, ENGINE_CONCURRENCY, async (s) => {
     try {
       return await (await app.getObject(s.sheetId)).getChildInfos();
-    } catch { return []; /* sheet unreadable — skip */ }
+    } catch { return []; }
   });
   sheets.forEach((s, i) => {
     for (const c of children[i]) map.set(c.qId, { sheetId: s.sheetId, sheetTitle: s.title });
@@ -43,9 +38,7 @@ export async function objectToSheetMap(app: Doc): Promise<Map<string, { sheetId:
   return map;
 }
 
-/** Property paths in an object's qProps that link to the given master item.
- *  Master items are referenced by qLibraryId — never by title — so this is
- *  the reference test delete_master_item uses. */
+// Master items are linked by qLibraryId, never by title.
 export function findLibraryRefs(prop: unknown, libraryId: string): string[] {
   const out: string[] = [];
   walkStrings(prop, "", (path, s) => {
@@ -60,16 +53,12 @@ export interface LibraryReference {
   paths: string[];
 }
 
-/** getAllInfos entries that can never carry a qLibraryId link: master items
- *  themselves, sheets/stories (layout containers — their charts are separate
- *  objects), and handles that are not generic objects at all (getObject
- *  would only fail on them). Skipping them saves two round trips each. */
+// Types that never carry a qLibraryId link; skipping saves two round trips each.
 const NON_LINKING_TYPES = new Set(["measure", "dimension", "sheet", "story", "appprops", "LoadModel", "bookmark", "variable"]);
 
 type SheetOwner = { sheetId: string; sheetTitle: string };
 
-/** id -> properties for every DESCENDANT in a GetFullPropertyTree result
- *  (the root itself excluded). */
+// Descendants only: the root itself is excluded.
 export function indexPropertyTree(root: ObjectTreeEntry): Map<string, GenericObjectProperties> {
   const out = new Map<string, GenericObjectProperties>();
   const walk = (e: ObjectTreeEntry): void => {
@@ -82,14 +71,7 @@ export function indexPropertyTree(root: ObjectTreeEntry): Map<string, GenericObj
   return out;
 }
 
-/** Properties of every object below a sheet, read with ONE GetFullPropertyTree
- *  per sheet instead of a getObject + getProperties pair per chart, plus the
- *  object -> sheet map those trees imply. Ownership mirrors objectToSheetMap +
- *  getParent: a sheet's direct children are owned by it; a grandchild (a
- *  filterpane's listbox) records its parent and is owned through it; deeper
- *  descendants record their parent only. A sheet whose tree cannot be read
- *  falls back to getChildInfos for ownership, and its objects are then read
- *  one by one by the caller. */
+// One GetFullPropertyTree per sheet; ownership must mirror objectToSheetMap + getParent.
 async function readSheetTrees(app: Doc): Promise<{
   byId: Map<string, { prop: GenericObjectProperties; owner?: SheetOwner; parentId?: string }>;
   sheetOf: Map<string, SheetOwner>;
@@ -103,7 +85,7 @@ async function readSheetTrees(app: Doc): Promise<{
       } catch {
         return { childIds: (await sheet.getChildInfos()).map((c) => c.qId) };
       }
-    } catch { return {}; /* sheet unreadable — skip */ }
+    } catch { return {}; }
   });
   const byId = new Map<string, { prop: GenericObjectProperties; owner?: SheetOwner; parentId?: string }>();
   const sheetOf = new Map<string, SheetOwner>();
@@ -129,11 +111,6 @@ async function readSheetTrees(app: Doc): Promise<{
   return { byId, sheetOf };
 }
 
-/** Every app object whose properties link to libraryId, with its owning
- *  sheet. Objects nested below a sheet child (a filterpane's listboxes) are
- *  attributed through their parent. Sheet contents come from one property
- *  tree per sheet; anything not under a sheet (master visualizations, ...)
- *  is read individually, bounded-parallel. Result order = getAllInfos order. */
 export async function libraryReferences(app: Doc, libraryId: string): Promise<LibraryReference[]> {
   const [allInfos, trees] = await Promise.all([app.getAllInfos(), readSheetTrees(app)]);
   const infos = allInfos.filter((info) => !NON_LINKING_TYPES.has(info.qType));
@@ -160,15 +137,14 @@ export async function libraryReferences(app: Doc, libraryId: string): Promise<Li
           const parent = await obj.getParent();
           parentId = parent?.id;
           owner = parentId ? trees.sheetOf.get(parentId) : undefined;
-        } catch { /* top-level object (master visualization etc.) */ }
+        } catch { /* top-level object */ }
       }
       return ref(prop, paths, owner, parentId);
-    } catch { return undefined; /* not a generic object (field, ...) — cannot hold a link */ }
+    } catch { return undefined; /* not a generic object */ }
   });
   return refs.filter((r): r is LibraryReference => r !== undefined);
 }
 
-/** Throw unless objectId is a direct child of the sheet. */
 export async function requireChildOf(sheet: GenericObject, sheetId: string, objectId: string): Promise<void> {
   const children = (await sheet.getChildInfos()).map((c) => c.qId);
   if (!children.includes(objectId)) {

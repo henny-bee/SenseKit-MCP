@@ -23,8 +23,7 @@ export function registerDeveloperTools(server: McpServer, engine: EngineClient, 
     },
     async ({ appId }) => {
       const app = await engine.app(appId);
-      // Load scripts are a credential egress path too: CUSTOM CONNECT
-      // strings, LET vPassword = '...'. Same posture as QRS redaction.
+      // Scripts leak credentials too (CUSTOM CONNECT, LET vPassword = ...).
       const raw: string = await app.getScript();
       const clean = scrubString(raw);
       return text(clean === raw ? clean : `// NOTE: credential-bearing values were redacted from this script.\n${clean}`);
@@ -45,8 +44,6 @@ export function registerDeveloperTools(server: McpServer, engine: EngineClient, 
     },
   );
 
-  // Mutating tools are REGISTERED only when mutations are enabled: a
-  // read-only server advertises a genuinely read-only tool surface.
   if (!cfg.allowMutations) return;
 
   server.registerTool(
@@ -60,10 +57,7 @@ export function registerDeveloperTools(server: McpServer, engine: EngineClient, 
       annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true, openWorldHint: false },
     },
     writes.byApp(async ({ appId, script }) => {
-      // A get_script -> edit -> set_script round trip of a script whose
-      // credentials were redacted would silently overwrite the real values
-      // with the mask. Refuse rather than corrupt; secrets belong in data
-      // connections, not scripts.
+      // A redacted round trip would overwrite real credentials with the mask.
       if (script.includes(REDACTED)) {
         throw new ToolError(
           "VALIDATION_REFUSED",

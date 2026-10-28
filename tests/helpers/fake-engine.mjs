@@ -1,31 +1,9 @@
-// Deterministic in-memory stand-in for the Qlik Engine (QIX) client.
-//
-// The tools only ever touch the engine through `engine.app(appId)` (a Doc)
-// and `engine.global()` (the Global object), so this fake implements the
-// subset of the enigma.js Doc / GenericObject / Global API that the tool
-// handlers use, backed by plain state the tests can inspect:
-//
-//   const fake = createFakeEngine();
-//   createServer({ cfg, engine: fake.engine, qrs })
-//   ...call tools...
-//   fake.doc.objects / .measures / .dimensions / .script / .saves / .reloads
-//
-// It behaves like a tiny engine, not like a recorder: hypercubes and list
-// objects are computed from a fixed 4-row data set, selections filter that
-// data, CheckExpression flags unknown fields and unbalanced parentheses, and
-// persistent objects keep their properties and child links. Tests therefore
-// assert on outcomes (what was created, what a cube returned), never on
-// which engine methods were called in what order.
-//
-// Nothing here opens a socket or starts a timer.
+// Tiny in-memory engine, not a recorder: tests assert outcomes, not call order.
 
-/** The app every test talks to unless it says otherwise. */
 export const APP_ID = "11111111-2222-3333-4444-555555555555";
-/** The id `Global.createApp` hands out. */
 export const NEW_APP_ID = "99999999-8888-7777-6666-555555555555";
 
-/** The data model: one table. FiscalYear is TEXT that looks numeric, which
- *  is the case select_field_values' text fallback exists for. */
+// FiscalYear is numeric-looking TEXT: exercises select_field_values' fallback.
 export const FIELDS = ["Region", "Product", "Sales", "OrderDate", "FiscalYear"];
 export const ROWS = [
   { Region: "East", Product: "Widget", Sales: 10, OrderDate: "2026-01-05", FiscalYear: "2025" },
@@ -34,15 +12,13 @@ export const ROWS = [
   { Region: "West", Product: "Gizmo", Sales: 40, OrderDate: "2026-04-23", FiscalYear: "2026" },
 ];
 
-/** Load script with a credential in it (get_script / search_expressions
- *  must redact it). */
+// Holds a credential that get_script / search_expressions must redact.
 export const DEFAULT_SCRIPT =
   "SET vPassword = 'hunter2';\r\n" +
   "LIB CONNECT TO 'WarehouseDB';\r\n" +
   "Sales:\r\nLOAD Region, Product, Sales, OrderDate, FiscalYear FROM [lib://Data/sales.qvd] (qvd);\r\n";
 
-/** An engine-side failure, shaped like an enigma.js rejection: an Error
- *  carrying the engine's numeric JSON-RPC error code (2 = LOCERR_GENERIC_NOT_FOUND). */
+// Shaped like an enigma.js rejection; code 2 = LOCERR_GENERIC_NOT_FOUND.
 export function qixError(message, code = 2) {
   return Object.assign(new Error(message), { code, parameter: message });
 }
@@ -50,11 +26,7 @@ export function qixError(message, code = 2) {
 const clone = (x) => (x === undefined ? x : JSON.parse(JSON.stringify(x)));
 const GUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-// ── A very small expression evaluator ────────────────────────────────────────
-// Enough to make numbers meaningful: Sum(F), Count(F), Count(distinct F),
-// Avg(F). An unknown field evaluates to 0, as on a real engine; anything
-// unrecognised evaluates to a non-numeric "-".
-
+// As on a real engine, an unknown field evaluates to 0.
 const AGG = /^\s*(sum|count|avg|min|max)\(\s*(distinct\s+)?\[?([A-Za-z_]\w*)\]?\s*\)\s*$/i;
 
 export function evaluate(expression, rows) {
@@ -72,9 +44,7 @@ export function evaluate(expression, rows) {
   return null;
 }
 
-/** CheckExpression: unbalanced parentheses are a syntax error; any
- *  identifier used as a function argument that is not a field is reported in
- *  qBadFieldNames (as {qFrom, qCount} ranges, like the engine). */
+// qBadFieldNames are {qFrom, qCount} ranges, like the engine.
 export function checkExpression(expression, fields = FIELDS) {
   const open = (expression.match(/\(/g) ?? []).length;
   const close = (expression.match(/\)/g) ?? []).length;
@@ -87,19 +57,6 @@ export function checkExpression(expression, fields = FIELDS) {
   return { qErrorMsg: "", qBadFieldNames: bad };
 }
 
-// ── The fake ─────────────────────────────────────────────────────────────────
-
-/**
- * @param {object} [opts]
- * @param {object} [opts.docOverrides]    methods merged over the main Doc (failure injection)
- * @param {object} [opts.globalOverrides] methods merged over the Global object
- * @param {string} [opts.script]          initial load script
- * @param {Array}  [opts.variables]       qVariableList items
- * @param {Array}  [opts.lineage]         Doc.getLineage() result
- * @param {Array}  [opts.scriptErrors]    Doc.checkScriptSyntax() result
- * @param {boolean} [opts.reloadResult]   Doc.doReload() result (default true)
- * @param {object} [opts.objectOverrides] methods merged over every GenericObject handle
- */
 export function createFakeEngine(opts = {}) {
   const docs = new Map();
   const doc = createDoc(APP_ID, opts);
@@ -139,8 +96,7 @@ export function createFakeEngine(opts = {}) {
   return { engine, doc, docs, global };
 }
 
-/** One app: its objects, master items, script and selection state. The
- *  returned record is the inspectable state; `.api` is what tools see. */
+// Returns test-inspectable state; `.api` is what tools see.
 function createDoc(id, opts) {
   let seq = 0;
   const nextId = (prefix) => `${prefix}-${++seq}`;
@@ -148,10 +104,10 @@ function createDoc(id, opts) {
     id,
     title: "Fake Sales",
     script: opts.script ?? DEFAULT_SCRIPT,
-    objects: new Map(),      // id -> { props, children: [], parent }
-    measures: new Map(),     // id -> GenericMeasureProperties
-    dimensions: new Map(),   // id -> GenericDimensionProperties
-    selections: new Map(),   // field -> Set(qText)
+    objects: new Map(),
+    measures: new Map(),
+    dimensions: new Map(),
+    selections: new Map(),
     variables: opts.variables ?? [
       { qName: "vPassword", qDefinition: "pwd=hunter2", qInfo: { qId: "var-1" } },
       { qName: "vSalesTarget", qDefinition: "=Sum(Sales) * 1.1", qInfo: { qId: "var-2" } },
@@ -167,7 +123,6 @@ function createDoc(id, opts) {
     reloads: [],
   };
 
-  // ── data helpers ──
   const visibleRows = () => ROWS.filter((r) =>
     [...st.selections].every(([f, set]) => set.has(String(r[f]))));
   const fieldOf = (dimDef) => {
@@ -235,7 +190,6 @@ function createDoc(id, opts) {
     };
   }
 
-  // ── persistent generic objects ──
   function objectHandle(oid) {
     const rec = () => {
       const r = st.objects.get(oid);
@@ -297,7 +251,6 @@ function createDoc(id, opts) {
     return Object.assign(h, opts.objectOverrides ?? {});
   }
 
-  // ── master items ──
   const itemHandle = (map, mid, kind) => {
     if (!map.has(mid)) throw qixError(`${kind} ${mid} not found`);
     return {
@@ -308,7 +261,6 @@ function createDoc(id, opts) {
     };
   };
 
-  // ── session objects (lists, cubes, selections) ──
   function sessionLayout(def) {
     if (def.qFieldListDef) return { qFieldList: { qItems: FIELDS.map((f) => ({ qName: f })) } };
     if (def.qMeasureListDef) {
@@ -384,8 +336,7 @@ function createDoc(id, opts) {
     async getField(f) {
       return {
         async selectValues(values, toggle = false) {
-          // Engine trap reproduced: a numeric dual only matches NUMERIC field
-          // values; text-only values match on qText.
+          // Engine trap: a numeric dual only matches numeric values, text matches qText.
           const hit = new Set();
           for (const r of ROWS) {
             const v = r[f];

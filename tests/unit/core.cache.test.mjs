@@ -2,12 +2,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { TtlCache } from "../../dist/core/cache.js";
 
-/** A controllable clock. */
 function clock(start = 1_000) {
   const c = { t: start, now: () => c.t, advance: (ms) => { c.t += ms; } };
   return c;
 }
-/** A loader that counts calls and returns a fresh value each time. */
 function loader(prefix = "v") {
   const l = { calls: 0 };
   l.load = async () => `${prefix}${++l.calls}`;

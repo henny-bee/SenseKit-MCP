@@ -1,6 +1,3 @@
-// Inspector tools (ship with the analyst group): the KPI -> object ->
-// sheet -> app -> script -> source trace over one app's definition layer.
-
 import { describe, test, before, after } from "node:test";
 import assert from "node:assert/strict";
 import { startServer, ok, expectToolError, expectInvalidArgs, deepIncludes } from "../helpers/harness.mjs";

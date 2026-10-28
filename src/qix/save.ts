@@ -1,17 +1,13 @@
 import { ToolError } from "../core/errors.js";
 import type { Doc } from "./types.js";
 
-/** LOCERR_PERSISTENCE_WRITE_FAILED: the engine could not write the app to
- *  disk. Seen live as a transient failure while another save on the same
- *  app was in flight. */
+/** LOCERR_PERSISTENCE_WRITE_FAILED; transient while another save is in flight. */
 export const WRITE_FAILED = 9000;
 
 const RETRY_DELAYS_MS = [250, 750, 1500];
 
 const engineCode = (e: unknown): unknown => (e as { code?: unknown } | null)?.code;
 
-/** DoSave, retried on "Write Failed" only. Until a save succeeds the change
- *  lives only in the engine session, so the final error says that plainly. */
 export async function saveApp(app: Pick<Doc, "doSave">, delays: readonly number[] = RETRY_DELAYS_MS): Promise<void> {
   for (let attempt = 0; ; attempt++) {
     try {

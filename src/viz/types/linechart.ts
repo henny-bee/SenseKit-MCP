@@ -1,4 +1,4 @@
-// linechart: nebula. No sortByMeasure — a time axis sorted by value is nonsense.
+// No sortByMeasure: a time axis sorted by value is nonsense.
 
 import { buildCube } from "../build.js";
 import type { ChartType } from "./contract.js";

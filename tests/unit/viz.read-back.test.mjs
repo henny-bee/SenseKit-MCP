@@ -3,8 +3,6 @@ import assert from "node:assert/strict";
 import { buildVizProps } from "../../dist/viz/props.js";
 import { specsFromProps, measureSpecFromDef } from "../../dist/viz/read-back.js";
 
-// ── Reading specs back (update_sheet_object) ─────────────────────────────────
-
 test("specsFromProps round-trips what buildVizProps wrote", () => {
   const dims = [{ field: "Region", label: "Reg", sort: "desc" }, { expression: "=Year(D)" }, { libraryId: "lib-d" }];
   const meas = [
@@ -36,7 +34,7 @@ test("specsFromProps round-trips null suppression, pivot columns, combo series a
     const back = specsFromProps(props);
     assert.deepEqual(buildVizProps(viz, "t", back.dimensions, back.measures), props, viz);
   }
-  // A measure of a client-authored combo chart (harvested shape).
+  // Harvested shape of a client-authored combo chart measure.
   const client = { qDef: { qDef: "Sum(S)", series: { type: "marker", axis: 0 }, color: { on: true, mode: "primary", paletteColor: { index: -1, color: "#00cf40", alpha: 1 } } } };
   assert.deepEqual(measureSpecFromDef(client), { expression: "Sum(S)", color: "#00cf40", series: { type: "marker", axis: "primary" } });
 });

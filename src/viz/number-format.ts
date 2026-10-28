@@ -1,12 +1,9 @@
-// Number formats: the agent-facing NumberFormatSpec and the engine's qNumFormat.
-
 import type { NxNumFormat } from "../qix/types.js";
 import { ToolError } from "../core/errors.js";
 
 export type NumberFormatType = "auto" | "number" | "integer" | "percent" | "money" | "date" | "custom";
 export interface NumberFormatSpec { type: NumberFormatType; pattern?: string; decimals?: number }
 
-/** Engine number-format block for a measure qDef (or a master qMeasure). */
 export interface EngineNumFormat {
   qNumFormat: { qType: string; qFmt: string; qnDec: number; qUseThou: 0 | 1; qDec: string; qThou: string };
   numFormatFromTemplate: false;
@@ -16,12 +13,8 @@ export interface EngineNumFormat {
 const decimalsIn = (pattern: string) => /\.([0#]+)/.exec(pattern.split(";")[0])?.[1].length ?? 0;
 const frac = (n: number) => (n > 0 ? "." + "0".repeat(n) : "");
 
-/** Map a number-format request to the engine's qNumFormat. undefined means
- *  "auto": leave the measure on numFormatFromTemplate (the default the
- *  builder has always emitted). numFormatFromTemplate MUST be false for an
- *  explicit format — with it true the client ignores qNumFormat and formats
- *  from the data model. Separators are pinned to "." / "," so the pattern is
- *  read the same way regardless of the app's locale variables. */
+// numFormatFromTemplate must be false or the client ignores qNumFormat.
+// Separators pinned to "." / "," so patterns read the same in any app locale.
 export function numFormatToEngine(nf: NumberFormatSpec): EngineNumFormat | undefined {
   const dec = nf.decimals;
   if (dec !== undefined && (!Number.isInteger(dec) || dec < 0 || dec > 15)) {
@@ -50,9 +43,6 @@ export function numFormatToEngine(nf: NumberFormatSpec): EngineNumFormat | undef
   };
 }
 
-/** Inverse of numFormatToEngine, for rebuilding an existing object without
- *  silently dropping its formats. Lossless for anything numFormatToEngine
- *  produced (pattern + decimals ride along verbatim). */
 export function numberFormatFromEngine(
   qDef: { qNumFormat?: NxNumFormat; numFormatFromTemplate?: boolean; isCustomFormatted?: boolean } | undefined,
 ): NumberFormatSpec | undefined {

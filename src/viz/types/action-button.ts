@@ -1,13 +1,7 @@
-// action-button: the client's Button object (sn-action-button), used here
-// for sheet navigation. No data cube. Property set mirrors the supernova's
-// own object definition (qlik-oss/sn-action-button src/object-properties.js
-// and style-defaults.js), so an MCP-built button starts out exactly like one
-// dragged onto a sheet in the client; only the label, background color and
-// navigation are filled in.
+// Props mirror sn-action-button's defaults, so it matches a client-made button.
 
 import type { ChartType, NavigateTo } from "./contract.js";
 
-/** The supernova's navigation block for a NavigateTo spec. */
 export function navigationProps(nav: NavigateTo | undefined): Record<string, unknown> {
   if (!nav || nav.action === "none") return { action: "none" };
   if (nav.action === "goToSheet") return { action: "goToSheet", sheet: nav.sheetId ?? "" };
@@ -22,8 +16,7 @@ export const actionButton: ChartType = {
   options: ["colorMode", "navigateTo"],
   colorModes: ["auto", "single"],
   build: ({ base, title, applied }) => {
-    // The title is the button's label; the object title stays set (so lists
-    // and the gate can name the button) but is not drawn above it.
+    // Title is the label; kept on the object so lists and the gate can name it.
     const label = title ?? "Button";
     const background = applied.colorMode === "single" && applied.color
       ? { index: -1, color: applied.color }

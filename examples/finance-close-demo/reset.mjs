@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-// Restore the clean dashboard script and reload — the tie-out state.
 import {
   clients, findAppByName, setScriptAndReload,
   DASHBOARD_NAME, DASHBOARD_SCRIPT_CLEAN, TRUTH,

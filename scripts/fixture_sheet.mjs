@@ -1,11 +1,4 @@
 #!/usr/bin/env node
-// One-time fixture for inspector-tool smoke coverage: on the demo app,
-// create (idempotently) a master measure "Smoke Revenue" and a sheet
-// "MCP Smoke Sheet" holding a KPI object that references the master
-// measure by library id. Dogfoods the server's own engine client.
-//
-// Env: same as the server (certificate mode is fine). Usage:
-//   node scripts/fixture_sheet.mjs <appId>
 import { loadConfig } from "../dist/config.js";
 import { EngineClient } from "../dist/clients/engine.js";
 
@@ -16,7 +9,6 @@ const cfg = loadConfig();
 const engine = new EngineClient(cfg);
 const app = await engine.app(appId);
 
-// master measure (idempotent by title)
 const ml = await app.createSessionObject({
   qInfo: { qType: "fixture-ml" },
   qMeasureListDef: { qType: "measure", qData: {} },
@@ -37,7 +29,6 @@ if (!measureId) {
   console.log("master measure exists", measureId);
 }
 
-// sheet with a KPI child (idempotent by title)
 const sl = await app.createSessionObject({
   qInfo: { qType: "fixture-sl" },
   qAppObjectListDef: { qType: "sheet", qData: { title: "/qMetaDef.title" } },
@@ -75,9 +66,7 @@ if (!sheetId) {
   console.log("sheet exists", sheetId);
 }
 
-// In a PUBLISHED app, owner-created sheets and master items stay PRIVATE
-// until published themselves — a JWT session as another user cannot see
-// them. Ensure-publish both (idempotent: already-published throws, ignored).
+// Published app: owner items stay private to other users until published.
 try {
   const sheet = await app.getObject(sheetId);
   await sheet.publish();

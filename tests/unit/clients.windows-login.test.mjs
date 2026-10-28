@@ -1,8 +1,3 @@
-// windows mode: the forms login against a loopback "proxy", the QRS client
-// on the resulting session (default proxy, no prefix), the re-login on a
-// login redirect, and the guards that keep the password and the Windows
-// account safe (no re-post after a rejection, no redirect off the proxy).
-
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import https from "node:https";
@@ -15,9 +10,7 @@ import { EngineClient } from "../../dist/clients/engine.js";
 const USER = "WESTARP\\tester";
 const PASSWORD = "p@ss word&=1";
 
-/** A fake forms-login proxy. `opts.password` is the one it accepts,
- *  `opts.csrf: false` mimics a proxy without /qps/csrftoken, and
- *  `opts.loginHost` puts another host into the login redirect. */
+// `opts.csrf: false` mimics a proxy without /qps/csrftoken.
 async function startProxy(opts = {}) {
   const requests = [];
   let sessions = 0;
@@ -48,7 +41,7 @@ async function startProxy(opts = {}) {
         live.add(s);
         return send(302, { Location: `${base}/hub/`, "Set-Cookie": `X-Qlik-Session=${s}; Path=/; HttpOnly; Secure` });
       }
-      if (url.pathname.startsWith("/nope/")) return send(404); // no such virtual proxy
+      if (url.pathname.startsWith("/nope/")) return send(404);
       if (!authed) return send(302, { Location: `${base}/internal_forms_authentication/?targetId=abc` });
       if (url.pathname === "/qps/csrftoken") {
         return opts.csrf === false ? send(404) : send(204, { "qlik-csrf-token": `csrf-${cookie}` });
@@ -99,7 +92,6 @@ test("login: hub redirect -> form POST -> ticket -> session cookie -> CSRF token
   const form = new URLSearchParams(post.body);
   assert.equal(form.get("username"), USER);
   assert.equal(form.get("pwd"), PASSWORD);
-  // the password goes to the form POST only
   for (const r of p.requests.filter((x) => x !== post)) assert.ok(!JSON.stringify(r).includes(PASSWORD));
 });
 

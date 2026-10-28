@@ -1,14 +1,9 @@
-// Engine-side quality checks shared by the analytics tools (trust envelope)
-// and the builder/validation gate. Everything here is read-only.
 import type { Doc } from "./types.js";
 
-/** Prefix of an expressionWarnings entry that is a hard syntax/parse error
- *  (as opposed to an unknown-field warning, which still evaluates — to 0). */
+/** Hard parse error; unknown-field warnings still evaluate (to 0). */
 export const EXPRESSION_ERROR = "expression error:";
 
-/** Validate an expression with the engine BEFORE trusting its result.
- *  Catches the silent killers: a misspelled field does not error at evaluate
- *  time — it just makes the number wrong. */
+// A misspelled field does not error at evaluate time; it silently yields 0.
 export async function expressionWarnings(app: Doc, expression: string): Promise<string[]> {
   const warnings: string[] = [];
   try {
@@ -16,12 +11,10 @@ export async function expressionWarnings(app: Doc, expression: string): Promise<
     if (chk.qErrorMsg) warnings.push(`${EXPRESSION_ERROR} ${chk.qErrorMsg}`);
     const bad = badFieldSubstrings(expression, chk.qBadFieldNames ?? []);
     if (bad.length) warnings.push(`unknown field(s): ${bad.join(", ")} — the engine returns null/0 for these rather than erroring`);
-  } catch { /* CheckExpression unavailable — do not block evaluation */ }
+  } catch { /* CheckExpression unavailable: do not block evaluation */ }
   return warnings;
 }
 
-/** Current selection state, compactly. Stamped onto every analytics return so
- *  a number can never silently masquerade as the unfiltered truth. */
 export async function activeSelections(app: Doc): Promise<Array<{ field: string; selectedCount: number; selected?: string }>> {
   const obj = await app.createSessionObject({
     qInfo: { qType: "mcp-selection-context" },
@@ -37,7 +30,6 @@ export async function activeSelections(app: Doc): Promise<Array<{ field: string;
   }
 }
 
-/** Field names present in the app's data model (for dimension validation). */
 export async function fieldNames(app: Doc): Promise<Set<string>> {
   const obj = await app.createSessionObject({
     qInfo: { qType: "mcp-fieldlist" },
@@ -57,14 +49,9 @@ export interface MasterIndex {
   dimensions: Map<string, string>;
 }
 
-/** The app's master measures and dimensions (id -> title). Used to refuse a
- *  qLibraryId that points nowhere: the engine persists a dangling link
- *  without complaint and the client draws an error tile. */
 export type MasterKind = "measure" | "dimension";
 
-/**
- *  Each kind costs three round trips (create, layout, destroy), so callers
- *  that only need one kind ask for just that one; the other map stays empty. */
+// Three round trips per kind: ask only for the kinds you need.
 export async function masterItems(app: Doc, kinds: readonly MasterKind[] = ["measure", "dimension"]): Promise<MasterIndex> {
   const out: MasterIndex = { measures: new Map(), dimensions: new Map() };
   const lists: Array<[Record<string, unknown>, "qMeasureList" | "qDimensionList", Map<string, string>]> = [];
@@ -82,14 +69,11 @@ export async function masterItems(app: Doc, kinds: readonly MasterKind[] = ["mea
   return out;
 }
 
-/** Map engine CheckExpression qBadFieldNames ranges ({qFrom,qCount} into the
- *  expression string) to the offending substrings. */
 export function badFieldSubstrings(expression: string, ranges: Array<{ qFrom: number; qCount: number }>): string[] {
   return (ranges ?? []).map((r) => expression.slice(r.qFrom, r.qFrom + r.qCount));
 }
 
-/** Case-insensitive title clash: two master items that differ only in case
- *  are indistinguishable in the client's asset panel. */
+// Case-insensitive: the client's asset panel cannot tell case variants apart.
 export function titleTaken(items: Map<string, string>, title: string): string | undefined {
   const want = title.trim().toLowerCase();
   for (const [id, t] of items) if (t.trim().toLowerCase() === want) return id;

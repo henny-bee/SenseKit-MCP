@@ -2,8 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { decodeRuleActions, lintSecurityRules } from "../../dist/core/security-rules.js";
 
-// ── decodeRuleActions / lintSecurityRules ────────────────────────────────────
-
 test("decodeRuleActions decodes composite masks", () => {
   assert.deepEqual(decodeRuleActions(2), ["Read"]);
   assert.deepEqual(decodeRuleActions(1 + 2 + 4 + 8), ["Create", "Read", "Update", "Delete"]);
@@ -24,9 +22,9 @@ test("lintSecurityRules flags the risky shapes and only those", () => {
   const f = lintSecurityRules(rules);
   const byRule = Object.fromEntries(f.map((x) => [x.ruleId, x]));
   assert.equal(f.length, 4);
-  assert.equal(byRule.r2.severity, "warn");   // disabled default
-  assert.equal(byRule.r3.severity, "high");   // wildcard custom
-  assert.equal(byRule.r4.severity, "high");   // unconditional write grant
-  assert.equal(byRule.r5.severity, "info");   // dead custom
-  assert.ok(!byRule.r0 && !byRule.r1 && !byRule.r6); // shipped ReadOnly/Default wildcards + scoped custom are fine
+  assert.equal(byRule.r2.severity, "warn");
+  assert.equal(byRule.r3.severity, "high");
+  assert.equal(byRule.r4.severity, "high");
+  assert.equal(byRule.r5.severity, "info");
+  assert.ok(!byRule.r0 && !byRule.r1 && !byRule.r6); // shipped wildcards and scoped custom rules are fine
 });

@@ -1,5 +1,3 @@
-// table: nebula (sn-table); any number of dimensions and measures.
-
 import { buildCube } from "../build.js";
 import type { ChartType } from "./contract.js";
 

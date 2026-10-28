@@ -1,5 +1,3 @@
-// listbox: a single-field list object (also the child type of a filterpane).
-
 import { fieldDef } from "../inputs.js";
 import { finishDim } from "../build.js";
 import { ToolError } from "../../core/errors.js";

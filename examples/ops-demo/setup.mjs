@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-// Build the failed-nightly-reload scenario: app + reload task, then run the
-// task once so a FinishedFail execution (with script log) exists for
-// get_reload_log to dissect. Idempotent — safe to re-run.
 import {
   clients, APP_NAME, TASK_NAME, NIGHTLY_SCRIPT, findAppByName, findTaskByName,
 } from "./common.mjs";

@@ -1,59 +1,44 @@
 import { numFormatToEngine, type NumberFormatSpec } from "./number-format.js";
 import { ToolError } from "../core/errors.js";
 
-// ── Dimension / measure specs (builder inputs) ───────────────────────────────
-// A dimension or measure arrives either as a bare string (the original API:
-// field name / expression) or as an object carrying a label, number format,
-// sort, color or a master-item link. Normalizing both into ONE shape up front
-// keeps every builder path (nebula, treemap, gauge, pivot, listbox,
-// filterpane) consuming the same thing, and makes the exactly-one-of rules
-// testable without an engine.
-
 export const HEX_COLOR = /^#(?:[0-9a-f]{3}|[0-9a-f]{6})$/i;
 
 export type DimSort = "asc" | "desc" | "loadOrder";
 
-/** Normalized: exactly one of field / expression / libraryId is set, and an
- *  expression always carries its leading "=" (that is how qFieldDefs tells a
- *  calculated dimension from a field name). */
+// Exactly one of field/expression/libraryId; expression keeps its "=" (qFieldDefs needs it).
 export interface DimSpec {
   field?: string;
   expression?: string;
   libraryId?: string;
   label?: string;
   sort?: DimSort;
-  /** false = the client's "Include null values" unticked (qNullSuppression).
-   *  Hypercube types only; absent or true is the client default. */
+  /** false = qNullSuppression ("Include null values" unticked). */
   includeNulls?: boolean;
-  /** pivot-table only: show this dimension across the top. Column
-   *  dimensions come after every row dimension (qNoOfLeftDims). */
+  /** pivot-table only: across the top; must come after all row dimensions. */
   pivotColumn?: boolean;
 }
 export type DimInput = string | DimSpec;
 
-/** Normalized: exactly one of expression / libraryId is set. The expression
- *  is kept as given — each builder path adds or strips the leading "=" the
- *  way the client it mirrors stores it. */
+// Expression kept as given: each builder adds or strips "=" as its client does.
 export interface MeasureSpec {
   expression?: string;
   libraryId?: string;
   label?: string;
   numberFormat?: NumberFormatSpec;
   color?: string;
-  /** combochart only: how this measure is drawn and on which axis. */
+  /** combochart only. */
   series?: SeriesSpec;
-  /** bulletchart only: the target marker, an expression. */
+  /** bulletchart only: target marker expression. */
   target?: string;
-  /** waterfallchart only: add (default), subtract, or show the running total. */
+  /** waterfallchart only. */
   operation?: WaterfallOperation;
-  /** waterfallchart only: add a subtotal bar with this label after the measure. */
+  /** waterfallchart only: label of a subtotal bar after this measure. */
   subtotal?: string;
 }
 export type MeasureInput = string | MeasureSpec;
 
 export type SeriesType = "bar" | "line" | "marker";
 export type SeriesAxis = "primary" | "secondary";
-/** Omitted fields default to a bar on the primary axis. */
 export interface SeriesSpec { type?: SeriesType; axis?: SeriesAxis }
 export type WaterfallOperation = "add" | "subtract" | "subtotal";
 
@@ -78,11 +63,7 @@ function exactlyOne<T extends object>(where: string, obj: T, keys: ReadonlyArray
   return given[0];
 }
 
-/** Strings stay field names (the original API) — except a leading "=",
- *  which is a calculated dimension. The engine stores both in qFieldDefs, so
- *  the built def is byte-identical either way; the distinction matters for
- *  pre-flight, which must CheckExpression a calculated dimension instead of
- *  looking it up in the field list (where it can never be found). */
+// A leading "=" is a calculated dim: pre-flight CheckExpressions it, not a field lookup.
 export function normalizeDims(inputs: ReadonlyArray<DimInput> = []): DimSpec[] {
   return inputs.map((d, i) => {
     const where = `dimensions[${i}]`;
@@ -162,11 +143,8 @@ export function normalizeMeasures(inputs: ReadonlyArray<MeasureInput> = []): Mea
   });
 }
 
-// ── Expression / sort helpers shared by the builders and the read-back ─────
-
 export const withEq = (e: string) => (e.startsWith("=") ? e : `=${e}`);
 export const noEq = (e: string) => (e.startsWith("=") ? e.slice(1) : e);
-/** What goes in qFieldDefs: the field name, or the "=..." calculated dim. */
 export const fieldDef = (d: DimSpec) => d.field ?? d.expression ?? "";
 
 export const SORT_CRITERIA: Record<DimSort, Record<string, number>> = {

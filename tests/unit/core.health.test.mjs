@@ -2,8 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { summarizeHealthcheck } from "../../dist/core/health.js";
 
-// ── summarizeHealthcheck ─────────────────────────────────────────────────────
-
 test("summarizeHealthcheck flattens the operator numbers, keeps raw", () => {
   const h = {
     version: "12.1877.6", started: "20260806T120000.000Z", saturated: false,
@@ -18,7 +16,7 @@ test("summarizeHealthcheck flattens the operator numbers, keeps raw", () => {
   assert.equal(s.memFreeMB, 14000);
   assert.deepEqual([s.apps.activeDocs, s.apps.loadedDocs], [1, 2]);
   assert.equal(s.raw.version, "12.1877.6");
-  // Some engine builds return counts, not arrays — both shapes must survive.
+  // Some engine builds return counts, not arrays.
   const s2 = summarizeHealthcheck({ apps: { active_docs: 3 } });
   assert.equal(s2.apps.activeDocs, 3);
 });

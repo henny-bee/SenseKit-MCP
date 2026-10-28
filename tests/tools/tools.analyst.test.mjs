@@ -1,10 +1,4 @@
-// Analyst group, engine query tools: data model, expressions with their
-// trust envelope (warnings + active selections), hypercubes, field values,
-// selections and the total-vs-groups crosscheck.
-//
-// Fake data (tests/helpers/fake-engine.mjs): Sales East 10+20, West 30+40;
-// Products Widget (East+West), Gadget (East), Gizmo (West).
-
+// Fake data: Sales East 10+20, West 30+40; Widget both, Gadget East, Gizmo West.
 import { describe, test, before, after, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { startServer, ok, expectToolError, expectInvalidArgs, APP_ID } from "../helpers/harness.mjs";

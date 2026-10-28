@@ -3,13 +3,11 @@ import assert from "node:assert/strict";
 import { redactSecrets, scrubString, REDACTED } from "../../dist/core/redact.js";
 import { fixture } from "./_helpers.mjs";
 
-// ── redactSecrets ────────────────────────────────────────────────────────────
-
 test("redactSecrets masks credential fields but keeps empty/null", () => {
   const dc = redactSecrets(fixture("dataconnection_full.json"));
   assert.equal(dc.password, "***REDACTED***");
-  assert.equal(dc.passphrase, "");                      // empty passes through
-  assert.equal(dc.username, "svc_qlik");                // not a secret field
+  assert.equal(dc.passphrase, "");
+  assert.equal(dc.username, "svc_qlik");
   assert.equal(dc.owner.userId, "svc_qlik");
 });
 
@@ -17,7 +15,7 @@ test("redactSecrets scrubs key=value secrets inside connection strings", () => {
   const dc = redactSecrets(fixture("dataconnection_full.json"));
   assert.ok(!dc.connectionstring.includes("SuperSecret123"));
   assert.ok(dc.connectionstring.includes("PWD=***REDACTED***"));
-  assert.ok(dc.connectionstring.includes("Data Source=warehouse.internal")); // non-secret kv intact
+  assert.ok(dc.connectionstring.includes("Data Source=warehouse.internal"));
 });
 
 test("redactSecrets handles arrays and non-objects", () => {
@@ -29,8 +27,7 @@ test("redactSecrets handles arrays and non-objects", () => {
 });
 
 test("redactSecrets masks camelCase-prefixed credential fields", () => {
-  // Regression: an anchored ^...$ key pattern matched only bare token names, so
-  // virtualproxyconfig.oidcClientSecret egressed a live Entra secret verbatim.
+  // Regression: an anchored key regex leaked oidcClientSecret verbatim.
   const vp = redactSecrets(fixture("virtualproxy_full.json"));
   assert.equal(vp.oidcClientSecret, REDACTED);
   assert.equal(vp.samlClientSecret, REDACTED);
@@ -44,7 +41,6 @@ test("redactSecrets keeps non-credential look-alike fields intact", () => {
   assert.equal(vp.hasSecureAttributeHttps, true);
   assert.equal(vp.sessionCookieHeaderName, "X-Qlik-Session-oidc");
   assert.equal(vp.anonymousAccessMode, 0);
-  // A public certificate is not a credential and must survive redaction.
   assert.ok(vp.jwtPublicKeyCertificate.includes("BEGIN CERTIFICATE"));
 });
 
@@ -63,9 +59,7 @@ test("redactSecrets matches credential key names with prefixes and suffixes", ()
 });
 
 test("redactSecrets masks name/value PAIRS that name a credential", () => {
-  // userdirectoryconnector.settings shape: the secret lives under "value" and
-  // is only identifiable from its sibling "name". A name-based matcher alone
-  // walks straight past it.
+  // The secret sits under "value", identifiable only by its sibling "name".
   const udc = redactSecrets({
     name: "LDAP-Corp",
     settings: [
@@ -75,25 +69,20 @@ test("redactSecrets masks name/value PAIRS that name a credential", () => {
       { id: "4", settingName: "Client Secret", value: "shh" },
     ],
   });
-  assert.equal(udc.settings[0].value, "svc_bind");        // not a credential
-  assert.equal(udc.settings[1].value, REDACTED);          // named Password
-  assert.equal(udc.settings[2].value, "ldap.internal");   // not a credential
-  assert.equal(udc.settings[3].value, REDACTED);          // settingName variant
-  assert.equal(udc.settings[1].name, "Password");         // the LABEL survives
-  assert.equal(udc.name, "LDAP-Corp");                    // entity name untouched
+  assert.equal(udc.settings[0].value, "svc_bind");
+  assert.equal(udc.settings[1].value, REDACTED);
+  assert.equal(udc.settings[2].value, "ldap.internal");
+  assert.equal(udc.settings[3].value, REDACTED); // settingName variant
+  assert.equal(udc.settings[1].name, "Password");
+  assert.equal(udc.name, "LDAP-Corp");
 });
 
-// ── scrubString: free-text egress (scripts, logs, snippets) ──────────────────
-
 test("scrubString masks quoted and bare values, prefixed key names", () => {
-  // Load-script shapes: SET/LET with quoted values, prefixed variable names.
   assert.equal(scrubString("SET vPassword = 'hunter2';"), `SET vPassword = ${REDACTED};`);
   assert.equal(scrubString('LET vApiKey = "abc-123";'), `LET vApiKey = ${REDACTED};`);
   assert.equal(scrubString("CUSTOM CONNECT TO \"provider=X;pwd=topsecret;host=y\";"),
     `CUSTOM CONNECT TO \"provider=X;pwd=${REDACTED};host=y\";`);
-  // Reload-log echo of a script line.
   assert.equal(scrubString("0007 LET vClient_Secret = 'shh'"), `0007 LET vClient_Secret = ${REDACTED}`);
-  // Non-secrets survive untouched.
   const clean = "LOAD OrderId, Region FROM [lib://X/y.qvd] (qvd);";
   assert.equal(scrubString(clean), clean);
 });

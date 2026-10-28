@@ -9,30 +9,19 @@ export interface ProxyCredentials {
   csrfToken: string;
 }
 
-/** Test seam: how a session is bootstrapped (default: the real GET
- *  /{prefix}/qps/csrftoken in jwt mode, the login form in windows mode) and
- *  what time it is (default Date.now). */
 export interface ProxySessionOptions {
   bootstrap?: (cfg: Config) => Promise<ProxyCredentials>;
   now?: () => number;
 }
 
-/** Below this age a 403 or a socket closed at open is NOT taken as a stale
- *  session: a session this fresh cannot have expired (the QMC minimum session
- *  timeout is one minute), so the cause is a security-rule denial or a real
- *  engine fault. Without this, every rule-denied call would mint a new proxy
- *  session and run into OnMaxParallelSessionsExceeded. A 401 always retries. */
+// A 403 below QMC's 1-min min timeout is a rule denial, not expiry: don't re-bootstrap.
 export const STALE_SESSION_MIN_AGE_MS = 60_000;
 
-/** Is `e` the proxy rejecting our session? 401/403 from QRS (status in
- *  details), a 401/403 on the engine websocket upgrade, or the engine socket
- *  closing before the session opened. Returns the HTTP status when known. */
 export function sessionRejection(e: unknown): { status?: number } | undefined {
   if (!(e instanceof ToolError)) return undefined;
   const status = e.details?.status;
   if (status === 401 || status === 403) return { status };
-  // A forms-login proxy answers a request without a valid session with a
-  // redirect to its login page instead of a 401: same meaning, same retry.
+  // A forms-login proxy redirects to its login page instead of answering 401.
   if (typeof status === "number" && status >= 300 && status < 400) return { status: 401 };
   if (e.code === "AUTH_ERROR") {
     const m = /\b(40[13])\b/.exec(e.message);
@@ -44,29 +33,13 @@ export function sessionRejection(e: unknown): { status?: number } | undefined {
   return undefined;
 }
 
-/**
- * JWT-mode session bootstrap.
- *
- * A Qlik virtual proxy protects WebSocket upgrades with a CSRF check
- * ("Cross-Site Websocket Hijacking prevention"). Presenting the JWT as a
- * bearer token on the upgrade is rejected — the proxy expects the same thing a
- * browser sends: an established session cookie plus a server-issued CSRF token
- * as the `qlik-csrf-token` query parameter.
- *
- * GET /{prefix}/qps/csrftoken authenticates the JWT once and returns both: the
- * session in Set-Cookie and the token in a `qlik-csrf-token` response header.
- *
- * Reusing the result matters. Every bearer-authenticated request mints a fresh
- * Qlik session, and users have a parallel-session limit — re-authenticating per
- * call exhausts it and the engine answers OnMaxParallelSessionsExceeded.
- */
+// Reuse the session: each bearer request mints a new one and hits the per-user limit.
 export class ProxySession {
   private creds?: ProxyCredentials;
   private issuedAt = 0;
   private inFlight?: Promise<ProxyCredentials>;
   private readonly bootstrapFn: (cfg: Config) => Promise<ProxyCredentials>;
   private readonly now: () => number;
-  /** Bootstraps performed so far (diagnostics and tests). */
   bootstraps = 0;
 
   constructor(private cfg: Config, opts: ProxySessionOptions = {}) {
@@ -85,18 +58,12 @@ export class ProxySession {
     return this.inFlight;
   }
 
-  /** Drop cached credentials so the next call re-authenticates. With `stale`,
-   *  only when those are still the cached ones: concurrent callers that all
-   *  saw the same dead session trigger ONE re-bootstrap, not one each. */
+  // With `stale`, drop only if still cached: concurrent failures re-bootstrap once.
   invalidate(stale?: ProxyCredentials): void {
     if (stale && this.creds !== stale) return;
     this.creds = undefined;
   }
 
-  /** Run `op` with the session credentials. If the proxy rejects the session
-   *  (see sessionRejection), invalidate it and retry ONCE with a freshly
-   *  bootstrapped one; a second failure is returned as is (never loops). The
-   *  session stays cached across calls, so normal traffic uses one session. */
   async run<T>(op: (creds: ProxyCredentials) => Promise<T>): Promise<T> {
     const creds = await this.ensure();
     const age = this.now() - this.issuedAt;
@@ -112,8 +79,6 @@ export class ProxySession {
   }
 }
 
-/** GET /{prefix}/qps/csrftoken with the JWT: the session cookie comes back
- *  in Set-Cookie, the CSRF token in a `qlik-csrf-token` header. */
 function bootstrapCsrf(cfg: Config): Promise<ProxyCredentials> {
   const ca = trustedCa(cfg);
   return new Promise<ProxyCredentials>((resolve, reject) => {
@@ -125,8 +90,7 @@ function bootstrapCsrf(cfg: Config): Promise<ProxyCredentials> {
       headers: { Authorization: `Bearer ${cfg.jwt}`, Accept: "*/*", Connection: "close" },
       rejectUnauthorized: cfg.tlsVerify,
       ...(ca ? { ca } : {}),
-      // The proxy closes this connection after the 204; keeping it out of the
-      // pool stops the next request from inheriting a dead socket.
+      // Proxy closes the socket after the 204; keep it out of the pool.
       agent: false,
     }, (res) => {
       res.resume(); // drain
@@ -153,14 +117,12 @@ function bootstrapCsrf(cfg: Config): Promise<ProxyCredentials> {
   });
 }
 
-/** The Qlik session cookie (`X-Qlik-Session`, or `X-Qlik-Session-<suffix>`
- *  on a prefixed proxy) from Set-Cookie, as a `name=value` pair. */
+// Prefix match: a prefixed proxy names it X-Qlik-Session-<suffix>.
 function qlikSessionCookie(setCookie: string[] | undefined): string | undefined {
   return (setCookie ?? []).map((c) => c.split(";")[0]).find((c) => c.startsWith("X-Qlik-Session"));
 }
 
-/** One request to the proxy with redirects NOT followed: each login step
- *  reads the Location itself and checks it before sending anything there. */
+// Redirects not followed: each login step checks the Location first.
 function proxyRequest(
   cfg: Config,
   path: string,
@@ -188,9 +150,7 @@ function proxyRequest(
   });
 }
 
-/** A login redirect's target as path + query, accepted only on the
- *  configured proxy (https, same host and port): the next steps send the
- *  password and then a one-time ticket there. */
+// Only accept redirects to the configured proxy: password and ticket go there.
 function onProxy(cfg: Config, location: string | undefined, step: string): string | undefined {
   if (!location) return undefined;
   const url = new URL(location, `https://${cfg.host}:${cfg.proxyPort}/`);
@@ -202,23 +162,7 @@ function onProxy(cfg: Config, location: string | undefined, step: string): strin
   return url.pathname + url.search;
 }
 
-/**
- * windows-mode session bootstrap: the login a browser does on a virtual proxy
- * using Windows authentication with the Form pattern.
- *
- *   1. GET {prefix}/hub/ without a session -> 302 to
- *      /internal_forms_authentication/?targetId=<id>
- *   2. POST username=DOMAIN\user&pwd=... to that URL -> 302 to the hub with a
- *      one-time ?qlikTicket=...
- *   3. GET the ticket URL -> the session in Set-Cookie
- *   4. GET {prefix}/qps/csrftoken with the session -> the qlik-csrf-token
- *      the engine websocket needs (see bootstrapCsrf). A proxy older than
- *      CSWSH protection has no such endpoint and needs no token.
- *
- * A rejected login is remembered: later bootstraps fail at once without
- * contacting the proxy, until the server restarts. Posting a wrong password
- * again on every tool call would lock the Windows account.
- */
+// A rejected login is cached until restart: retrying would lock the Windows account.
 function formsLogin(): (cfg: Config) => Promise<ProxyCredentials> {
   let rejected: ToolError | undefined;
   return async (cfg) => {

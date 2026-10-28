@@ -2,8 +2,6 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { normalizeDims, normalizeMeasures } from "../../dist/viz/inputs.js";
 
-// ── Builder extensions: spec normalization ───────────────────────────────────
-
 test("normalizeDims: strings stay fields, '=' strings become calculated dims", () => {
   assert.deepEqual(normalizeDims(["Region", "=Year(OrderDate)"]), [
     { field: "Region" }, { expression: "=Year(OrderDate)" },
@@ -22,7 +20,7 @@ test("normalizeDims: object forms, '=' added to expressions, idempotent", () => 
     { expression: "=Year(OrderDate)" },
     { libraryId: "lib-dim-1" },
   ]);
-  assert.deepEqual(normalizeDims(n), n); // normalized specs are valid input
+  assert.deepEqual(normalizeDims(n), n);
 });
 
 test("normalizeDims: exactly-one-of and value errors name the offending item", () => {

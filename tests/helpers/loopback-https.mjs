@@ -1,19 +1,4 @@
-// A loopback HTTPS server for the tools that bypass the QRS client and call
-// rawRequest directly: engine_healthcheck (engine :4747 / virtual proxy) and
-// the QPS session tools (:4243). It listens on 127.0.0.1 only, on a random
-// port, and answers through a test-supplied handler, so those handlers run
-// end to end (TLS, headers, xrfkey, status mapping) without any real host.
-//
-//   const srv = await startLoopbackHttps((req) => ({ status: 200, body: {...} }));
-//   const h = await startServer({ cfg: loopbackConfig(srv.port, {...}) });
-//   srv.requests -> [{ method, path, headers }]
-//   await srv.close();
-//
-// TEST-ONLY KEY MATERIAL: the certificate below is self-signed for
-// CN=localhost / IP 127.0.0.1, valid until 2126, and protects nothing. It is
-// embedded here (not as a .pem file, which .gitignore excludes) so the suite
-// is self-contained. Never reuse it.
-
+// TEST-ONLY self-signed localhost key, inlined since .gitignore drops .pem. Never reuse.
 import https from "node:https";
 import net from "node:net";
 import { makeConfig } from "./harness.mjs";
@@ -70,10 +55,6 @@ export const TEST_KEY = [
   "-----END PRIVATE KEY-----",
 ].join("\n");
 
-/**
- * @param {(req: { method: string, path: string, headers: object }) => { status?: number, body?: unknown, headers?: object }} handler
- *        body: objects are JSON-encoded, strings sent verbatim, undefined = empty
- */
 export async function startLoopbackHttps(handler) {
   const requests = [];
   const server = https.createServer({ cert: TEST_CERT, key: TEST_KEY }, (req, res) => {
@@ -90,8 +71,6 @@ export async function startLoopbackHttps(handler) {
   return listen(server, { requests });
 }
 
-/** A loopback port that accepts TCP connections and drops them at once:
- *  the "network failure" case (reset / TLS never established). */
 export async function startDroppingServer() {
   const server = net.createServer((socket) => socket.destroy());
   return listen(server, {});
@@ -109,10 +88,7 @@ async function listen(server, extra) {
   };
 }
 
-/** Config pointing every raw-HTTPS port at the loopback server, with the
- *  test certificate as client cert AND trusted CA (TLS verification stays on).
- *  `rootCaOnly: true` mimics QSEOW_ROOT_CERT_PATH without certificate files:
- *  cfg.ca set, cfg.cert undefined. */
+// `rootCaOnly` mimics QSEOW_ROOT_CERT_PATH alone: cfg.ca set, no client cert.
 export function loopbackConfig(port, opts = {}) {
   const cfg = makeConfig({ groups: ["admin"], allowMutations: true, ...opts });
   return {

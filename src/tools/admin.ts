@@ -30,11 +30,7 @@ export function registerAdminTools(server: McpServer, qrs: QrsClient, cfg: Confi
     },
     async () => {
       const rows = await qrs.get<QrsServiceStatus[]>("/qrs/servicestatus/full");
-      // QRS enums: serviceType 0 Repository, 1 Proxy, 2 Scheduler, 3 Engine,
-      // 4 AppMigration, 5 Printing. serviceState 0 Initializing,
-      // 1 CertificatesNotInstalled, 2 Running, 3 NoCommunication, 4 Disabled,
-      // 5 Unknown. Verified against a live May 2026 site — all healthy
-      // services report serviceState 2.
+      // QRS enum: healthy services report serviceState 2.
       const TYPE: Record<number, string> = { 0: "Repository", 1: "Proxy", 2: "Scheduler", 3: "Engine", 4: "AppMigration", 5: "Printing" };
       const STATE: Record<number, string> = { 0: "Initializing", 1: "CertificatesNotInstalled", 2: "Running", 3: "NoCommunication", 4: "Disabled", 5: "Unknown" };
       return text(rows.map((r) => ({
@@ -112,7 +108,6 @@ export function registerAdminTools(server: McpServer, qrs: QrsClient, cfg: Confi
       const tasks = await qrs.get<QrsReloadTask[]>(path);
       return text(paginate(tasks.map((t) => ({
         id: t.id, name: t.name, app: t.app?.name, enabled: t.enabled,
-        // No execution result yet -> no status code -> "Unknown".
         lastStatus: EXECUTION_STATUS[t.operational?.lastExecutionResult?.status ?? -1] ?? "Unknown",
         lastStart: t.operational?.lastExecutionResult?.startTime,
         lastStop: t.operational?.lastExecutionResult?.stopTime,
@@ -120,9 +115,7 @@ export function registerAdminTools(server: McpServer, qrs: QrsClient, cfg: Confi
     },
   );
 
-  // Mutating tools are REGISTERED only when mutations are enabled — a client
-  // connected to a read-only server never sees them in tools/list, rather
-  // than discovering them and being refused at call time.
+  // Read-only servers never register mutating tools, so tools/list stays honest.
   if (cfg.allowMutations) {
     server.registerTool(
       "start_task",
@@ -203,10 +196,7 @@ export function registerAdminTools(server: McpServer, qrs: QrsClient, cfg: Confi
       const suffix = full ? "/full" : "";
       const path = `/qrs/${entity}${suffix}${filter ? `?filter=${encodeURIComponent(filter)}` : ""}`;
       const res = await qrs.get(path);
-      // Redact BEFORE returning, on every entity type: /qrs/dataconnection/full
-      // (and future entity types) must never egress passwords or embedded
-      // connection-string secrets through the generic path. Full entities are
-      // fat — default page size is smaller than the dedicated list tools.
+      // Redact every entity type: the generic path must never egress secrets.
       const clean = redactSecrets(res);
       return text(Array.isArray(clean) ? paginate(clean, offset, limit, full ? 25 : 100) : clean);
     },

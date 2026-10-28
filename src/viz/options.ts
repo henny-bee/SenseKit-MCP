@@ -5,16 +5,12 @@ import type { NavigateTo, OptionKey, VizOptions } from "./types/contract.js";
 
 export type { VizOptions } from "./types/contract.js";
 
-// Which type honours which option is declared on the type itself
-// (ChartType.options / .measureColors). This is the order ignored options
-// are reported in.
+// Order = the order ignored options are reported in.
 const OPTION_KEYS: readonly OptionKey[] = ["colorMode", "showLegend", "showDataLabels", "orientation", "stacked", "sortByMeasure", "includeZeros", "navigateTo"];
 
 const supports = (viz: string, key: OptionKey): boolean =>
   CHART_TYPES_BY_NAME.get(viz)?.options?.includes(key) ?? false;
 
-/** Decide which options apply to this type. Pure; throws on contradictory
- *  input (single color without a color). `notes` lists everything ignored. */
 export function resolveVizOptions(
   viz: string,
   options: VizOptions,
@@ -54,8 +50,7 @@ export function resolveVizOptions(
     else if (supports(viz, "colorMode")) notes.push('options.color is only used with colorMode "single" — ignored');
     else notes.push(`options.color does not apply to ${viz} — ignored`);
   }
-  // Unknown types (extensions) get the generic hypercube, so the cube-level
-  // dimension flags apply to them too.
+  // Unknown (extension) types get the generic hypercube, so cube flags apply.
   const spec = CHART_TYPES_BY_NAME.get(viz)?.spec;
   const hypercube = !spec || spec.cube === "hypercube";
   dims.forEach((d, i) => {
@@ -84,9 +79,6 @@ export function resolveVizOptions(
   return { applied, notes, measureColors };
 }
 
-/** Each navigation action needs its own target; targets of other actions are
- *  reported as ignored. Whether a goToSheet target exists is checked against
- *  the app in pre-flight (viz/definition.ts). */
 function checkNavigateTo(nav: NavigateTo, notes: string[]): void {
   if (nav.action === "goToSheet" && !nav.sheetId) {
     throw new ToolError("INVALID_INPUT", 'options.navigateTo action "goToSheet" needs sheetId (from list_sheets)');
@@ -99,8 +91,7 @@ function checkNavigateTo(nav: NavigateTo, notes: string[]): void {
   if (nav.sameWindow !== undefined && nav.action !== "openWebsite") notes.push(`options.navigateTo.sameWindow only applies to action "openWebsite" — ignored`);
 }
 
-/** qNoOfLeftDims counts the LEADING dimensions as rows, so column dimensions
- *  have to be the trailing ones; and a pivot keeps at least one row. */
+// qNoOfLeftDims counts LEADING dims as rows, so column dims must trail.
 function checkPivotColumns(dims: DimSpec[]): void {
   const first = dims.findIndex((d) => d.pivotColumn === true);
   if (first === -1) return;

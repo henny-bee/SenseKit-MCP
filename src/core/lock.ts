@@ -1,11 +1,4 @@
-/** Runs tasks one at a time per key, in arrival order; different keys run
- *  in parallel. A task that throws releases the key like one that returns.
- *
- *  Used to serialize writes per app: two mutating tool calls on one app
- *  interleave their read-modify-write of the sheet's cell list (one cell is
- *  lost) and their DoSave calls (the engine answers "Write Failed", and an
- *  object that was created but never saved disappears when the session
- *  closes). Hit live when a client sent builder calls in parallel. */
+// Serializes per-app writes: parallel edits lose sheet cells and DoSave fails.
 export class KeyedLock {
   private tails = new Map<string, Promise<void>>();
 
@@ -24,7 +17,6 @@ export class KeyedLock {
     }
   }
 
-  /** `fn` wrapped so that calls with the same `args.appId` run one at a time. */
   byApp<A extends { appId: string }, Rest extends unknown[], R>(
     fn: (args: A, ...rest: Rest) => Promise<R>,
   ): (args: A, ...rest: Rest) => Promise<R> {

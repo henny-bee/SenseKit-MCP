@@ -1,11 +1,3 @@
-// A small, realistic app definition seeded straight into a fake Doc
-// (bypassing the tools), for tests that READ an app: one sheet with a bar
-// chart linked to master items, a KPI, and an extension object whose config
-// embeds a connection-string secret.
-//
-//   const ids = await seedApp(h.doc);
-//   ids.sheetId, ids.barId, ids.kpiId, ids.extId, ids.measureId, ids.dimensionId
-
 export const EXT_SECRET = "ExtS3cret!";
 
 export async function seedApp(doc) {

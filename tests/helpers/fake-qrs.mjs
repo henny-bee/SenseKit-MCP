@@ -1,18 +1,4 @@
-// Deterministic in-memory stand-in for the QRS REST client.
-//
-// Same surface as src/clients/qrs.ts (get/post/put/delete/request), routed
-// against a small fixed site: two streams, three apps, reload tasks in
-// several states, a data connection and a virtual proxy carrying secrets
-// (from tests/fixtures), and a security-rule set that trips every lint.
-//
-//   const qrs = createFakeQrs();                 // default site
-//   const qrs = createFakeQrs({ routes: [...] }) // extra routes win
-//   qrs.calls  -> [{ method, path, body }]       // what reached the "wire"
-//
-// `calls` exists so a test can check what a tool ASKED the repository for
-// (a filter, a stream id) — part of the tool's contract with QRS — not to
-// count requests. Errors mimic the real client (see qrsHttpError).
-
+// `calls` shows what a tool asked QRS for (filter, id), not how often.
 import { readFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -20,9 +6,7 @@ import { ToolError, httpErrorCode } from "../../dist/core/errors.js";
 
 const FIXTURES = join(dirname(fileURLToPath(import.meta.url)), "..", "fixtures");
 export const fixture = (name) => JSON.parse(readFileSync(join(FIXTURES, name), "utf8"));
-/** An HTTP failure exactly as src/clients/qrs.ts raises it: a ToolError
- *  whose code is derived from the status, with { status, method, path }.
- *  Use it in custom routes to simulate a QRS error. */
+// Same error src/clients/qrs.ts raises; throw it from custom routes.
 export function qrsHttpError(status, method, path, body = "") {
   return new ToolError(httpErrorCode(status, "QRS_ERROR"), `QRS ${method} ${path} -> ${status}: ${body}`, { status, method, path });
 }
@@ -41,8 +25,6 @@ const LOG_REF = "dddddddd-0000-0000-0000-000000000001";
 
 const owner = (userId, userDirectory = "LAB") => ({ userId, userDirectory });
 
-/** Build the default site. A fresh copy per fake, so tests cannot leak
- *  state into each other. */
 export function defaultSite() {
   const streams = [
     { id: STREAM_EVERYONE, name: "Everyone", owner: owner("sa_repository", "INTERNAL") },
@@ -100,9 +82,7 @@ export function defaultSite() {
   };
 }
 
-/** Parse the one filter shape the tools build themselves:
- *  `name eq '<value>'` with qrsQuote escaping. Anything else returns null
- *  (meaning: the fake does not filter, it just records the path). */
+// Only `name eq '<v>'` is filtered; anything else returns null (unfiltered).
 function nameEq(path) {
   const q = path.indexOf("?filter=");
   if (q < 0) return null;
@@ -111,13 +91,6 @@ function nameEq(path) {
   return m ? m[1].replace(/\\(.)/g, "$1") : null;
 }
 
-/**
- * @param {object} [opts]
- * @param {Array<[string, RegExp, (m: RegExpMatchArray, body: any, site: object, path: string) => any]>} [opts.routes]
- *        extra [method, pathRegex, handler] routes, tried before the defaults;
- *        a handler may throw to simulate a QRS error
- * @param {(site: object) => void} [opts.tweak] edit the default site before use
- */
 export function createFakeQrs(opts = {}) {
   const site = defaultSite();
   opts.tweak?.(site);
@@ -162,7 +135,7 @@ export function createFakeQrs(opts = {}) {
       const match = re.exec(path);
       if (match) return clone(await handler(match, body, site, path));
     }
-    // Unknown GET collections answer [] like an empty QRS entity list.
+    // Like QRS, an unknown GET collection is an empty list.
     if (method === "GET" && /^\/qrs\/[a-z]+(\/full)?(\?|$)/.test(path)) return [];
     return notFound(method, path);
   }

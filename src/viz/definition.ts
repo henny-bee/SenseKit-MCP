@@ -1,6 +1,3 @@
-// Pre-flight + creation of a visualization definition, shared by
-// add_sheet_object and update_sheet_object.
-
 import { errMsg, ToolError, type ErrorCode } from "../core/errors.js";
 import { mapPool, ENGINE_CONCURRENCY } from "../core/pool.js";
 import { expressionWarnings, fieldNames, masterItems, EXPRESSION_ERROR } from "../qix/quality.js";
@@ -16,8 +13,6 @@ import type { Doc, GenericObject, GenericObjectProperties } from "../qix/types.j
 
 export interface PreparedDefinition { props: GenericObjectProperties; dims: DimSpec[]; notes: string[] }
 
-/** Normalize and pre-flight a definition: everything that can be refused
- *  BEFORE the app is touched, rather than persisting junk and reporting it. */
 export async function prepareDefinition(
   app: Doc,
   verb: "create" | "update",
@@ -42,8 +37,7 @@ export async function prepareDefinition(
   const hardShape = checkVizShape(viz, dims.length, meas.length).filter((f) => f.severity === "fail");
   if (hardShape.length) throw refuse(hardShape.map((f) => f.message).join("; "), "VALIDATION_REFUSED", { visualization: viz, findings: hardShape });
 
-  // A button that goes to a sheet that isn't there saves fine and does
-  // nothing when clicked.
+  // A goToSheet to a missing sheet saves fine and silently does nothing.
   const nav = resolved.applied.navigateTo;
   if (nav?.action === "goToSheet" && nav.sheetId) {
     const sheets = await sheetList(app);
@@ -58,14 +52,8 @@ export async function prepareDefinition(
     const missing = fieldDims.filter((f) => !fields.has(f));
     if (missing.length) throw refuse(`dimension field(s) not in the data model: ${missing.join(", ")}`, "NOT_FOUND", { missingFields: missing });
   }
-  // A calculated dimension is refused on ANY CheckExpression finding — same
-  // bar as a misspelled field dimension. An inline measure only on a hard
-  // syntax error: an unknown field in a measure saves and renders 0, which
-  // is exactly what the post-create gate reports as a fail (the builder demo
-  // relies on that path), so it is not pre-empted here.
-  // All CheckExpression calls go out together (bounded); refusals are then
-  // raised in input order, dimensions first — the same first error a
-  // sequential walk would report.
+  // Measures refuse only syntax errors: an unknown field renders 0 and the gate fails it.
+  // Refusals are raised in input order, dimensions first.
   const [dimWarnings, measWarnings] = await Promise.all([
     mapPool(dims, ENGINE_CONCURRENCY, (d) => (d.expression === undefined ? Promise.resolve([]) : expressionWarnings(app, d.expression.slice(1)))),
     mapPool(meas, ENGINE_CONCURRENCY, (m) => (m.expression === undefined ? Promise.resolve([]) : expressionWarnings(app, noEq(m.expression)))),
@@ -92,8 +80,6 @@ export async function prepareDefinition(
   return { props: buildVizProps(viz, title, dims, meas, resolved.applied), dims, notes: resolved.notes };
 }
 
-/** Create the object under `parent` (a sheet), plus its listbox children
- *  when it is a filterpane. Returns the new object id. */
 export async function createVizObject(
   parent: GenericObject, viz: string, prepared: PreparedDefinition,
 ): Promise<{ objectId: string; handle: GenericObject }> {
@@ -101,6 +87,5 @@ export async function createVizObject(
   if (VIZ_SPECS[viz]?.cube === "filterpane") {
     for (const lb of buildFilterpaneChildren(prepared.dims)) await child.createChild(lb);
   }
-  // The handle is returned so the caller can validate without a getObject.
   return { objectId: (await child.getLayout()).qInfo.qId, handle: child };
 }

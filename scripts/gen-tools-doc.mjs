@@ -1,19 +1,6 @@
 #!/usr/bin/env node
-// Generate docs/tools.md from the server's REAL tools/list, so the reference
-// can never drift from what a client actually sees.
-//
-// Boots dist/index.js over stdio several times with a dummy host and dummy
-// certificate files, and only ever calls initialize + tools/list. tools/list
-// needs no connection to a Qlik site, so nothing here touches the network.
-// The boots differ only in config, which is how the doc learns facts that
-// tools/list itself does not state:
-//   - one boot per tool group (analyst / developer / admin)  -> persona
-//   - all groups with mutations off                          -> mutation-gated
-//   - all groups in jwt mode with no certificate files       -> needs certs
-//
-// Usage (after `npm run build`; or `npm run docs:tools` / `npm run docs:check`):
-//   node scripts/gen-tools-doc.mjs           write docs/tools.md
-//   node scripts/gen-tools-doc.mjs --check   exit 1 if docs/tools.md is stale
+// Usage: node scripts/gen-tools-doc.mjs [--check]   (after npm run build)
+// Offline: boots dist/ with dummy config per group/mode; only calls tools/list.
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 import { mkdtempSync, writeFileSync, readFileSync, rmSync, existsSync } from "node:fs";
@@ -31,9 +18,7 @@ if (!existsSync(entry)) {
 }
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 
-// Isolated scratch dir: an empty .env (so a developer's real ./.env is never
-// read) and a dummy file standing in for the certificate and key. The config
-// loader only reads those files; nothing opens a TLS connection.
+// Empty .env so a developer's real ./.env is never read.
 const tmp = mkdtempSync(join(tmpdir(), "gen-tools-doc-"));
 const emptyEnv = join(tmp, "empty.env");
 const dummyPem = join(tmp, "dummy.pem");
@@ -83,14 +68,10 @@ try {
   rmSync(tmp, { recursive: true, force: true });
 }
 
-// ── JSON Schema -> markdown rows ─────────────────────────────────────────────
-
 const cell = (s) => String(s ?? "").replace(/\r?\n/g, " ").replace(/\|/g, "\\|").trim();
 const code = (s) => "`" + String(s).replace(/`/g, "'") + "`";
 const GUID_RE = "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$";
 
-/** Resolve a local "$ref" (JSON pointer into the tool's inputSchema). The
- *  sibling description, if any, wins over the target's. */
 function resolve(schema, rootSchema) {
   if (!schema || !schema.$ref) return schema;
   const target = schema.$ref.replace(/^#\//, "").split("/").reduce((o, k) => o?.[decodeURIComponent(k)], rootSchema);
@@ -125,8 +106,6 @@ function constraints(s) {
   return out;
 }
 
-/** The object schema nested under a property, if any: a plain object, an
- *  array of objects, or the object branch of a string-or-object union. */
 function nestedObject(s, rootSchema) {
   s = resolve(s, rootSchema);
   if (!s) return undefined;
@@ -162,8 +141,6 @@ function annotationLine(a = {}) {
     .map((k) => `${code(k)}: ${a[k]}`);
   return flags.length ? flags.join(", ") : "none";
 }
-
-// ── Document ─────────────────────────────────────────────────────────────────
 
 const PERSONAS = [
   ["analyst", "Analyst", "Ask questions of app data through the Engine (QIX), plus the read-only troubleshooting tools: sheets, objects, expression search, master items, lineage."],
@@ -240,7 +217,7 @@ L();
 const doc = lines.join("\r\n");
 if (check) {
   const current = existsSync(outFile) ? readFileSync(outFile, "utf8") : "";
-  // Compare without line endings: a git checkout may normalize CRLF to LF.
+  // git checkout may normalize CRLF to LF.
   const norm = (t) => t.replace(/\r\n/g, "\n");
   if (norm(current) !== norm(doc)) {
     console.error("docs/tools.md is out of date: run `node scripts/gen-tools-doc.mjs`");

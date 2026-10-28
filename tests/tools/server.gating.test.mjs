@@ -1,8 +1,4 @@
-// tools/list contract: which tools a server advertises for a given config
-// (tool groups, mutation gate, certificate material) and how each one is
-// annotated. A mutating tool must be ABSENT from a read-only server, not
-// present-and-refusing.
-
+// A read-only server must not list mutating tools at all, not list-and-refuse.
 import { describe, test, after, before } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";

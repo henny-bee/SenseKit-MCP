@@ -4,8 +4,6 @@ import { saveApp, WRITE_FAILED } from "../../dist/qix/save.js";
 
 const writeFailed = () => Object.assign(new Error("Write Failed"), { code: WRITE_FAILED });
 
-// ── DoSave with retry on "Write Failed" ──────────────────────────────────────
-
 test("saveApp: retries 'Write Failed' until the save succeeds", async () => {
   let calls = 0;
   await saveApp({ doSave: async () => { if (++calls < 3) throw writeFailed(); } }, [0, 0, 0]);

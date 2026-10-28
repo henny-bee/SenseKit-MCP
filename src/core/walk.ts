@@ -1,4 +1,3 @@
-/** Walk any JSON value; call visit(path, string) on every string leaf. */
 export function walkStrings(v: unknown, path: string, visit: (path: string, s: string) => void): void {
   if (typeof v === "string") {
     visit(path, v);

@@ -1,9 +1,4 @@
-// distributionplot: the client's Distribution plot. Tree-mode cube (qMode
-// "K"), sorted by the second column first, as the client's data definition
-// does when dimensions change. Property set mirrors
-// @nebula.js/sn-distributionplot (object-properties.js, distributionplot-data.js).
-// dimensions[0] is what each point is; the optional dimensions[1] gives one
-// row of points per value.
+// qMode "K", sorted by the second column first, as the client does.
 
 import { clientCube } from "../build.js";
 import type { ChartType } from "./contract.js";

@@ -4,8 +4,6 @@ import { readdirSync } from "node:fs";
 import { walkStrings } from "../../dist/core/walk.js";
 import { FIXTURES, fixture } from "./_helpers.mjs";
 
-// ── walkStrings + search semantics over qProp fixtures ───────────────────────
-
 function searchQProp(prop, term) {
   const needle = term.toLowerCase();
   const found = [];

@@ -1,16 +1,4 @@
-// Test harness: the real server (dist/server.js createServer) wired to the
-// fakes, driven through a real MCP client over the SDK's in-memory
-// transport. Every tool call goes through JSON-RPC, zod input validation,
-// the handler and the SDK's error wrapping, exactly as a client sees it.
-//
-//   const h = await startServer({ allowMutations: false });
-//   after(() => h.close());
-//   const res = await h.call("list_sheets", { appId: APP_ID });
-//   const body = ok(res);                         // asserts !isError, parses JSON
-//   expectToolError(res, { code: "NOT_FOUND", messageIncludes: "refusing" });
-//
-// Requires a build (npm test builds first).
-
+// Real server + real MCP client over in-memory transport. Needs a build (dist/).
 import assert from "node:assert/strict";
 import { createServer } from "../../dist/server.js";
 import { ERROR_CODES as CONTRACT_ERROR_CODES } from "./inventory.mjs";
@@ -21,8 +9,6 @@ import { createFakeQrs } from "./fake-qrs.mjs";
 
 export { APP_ID } from "./fake-engine.mjs";
 
-/** A complete Config (src/config.ts) for an unreachable host. Tests never
- *  touch the network: the engine and QRS clients are fakes. */
 export function makeConfig({ groups = ["analyst", "developer", "admin"], allowMutations = true, cert = false, authMode = "certificate" } = {}) {
   return {
     host: "qlik.example.invalid",
@@ -41,11 +27,6 @@ export function makeConfig({ groups = ["analyst", "developer", "admin"], allowMu
   };
 }
 
-/**
- * Start a server + connected client. Options are makeConfig() options plus
- * optional pre-built fakes (`fake` from createFakeEngine, `qrs` from
- * createFakeQrs) and `deps` merged into the createServer() deps.
- */
 export async function startServer(opts = {}) {
   const fake = opts.fake ?? createFakeEngine(opts.engineOptions);
   const qrs = opts.qrs ?? createFakeQrs(opts.qrsOptions);
@@ -59,11 +40,8 @@ export async function startServer(opts = {}) {
   let toolCache;
   const h = {
     cfg, fake, doc: fake.doc, qrs, server, client,
-    /** Raw CallToolResult. */
     call: (name, args = {}) => client.callTool({ name, arguments: args }),
-    /** Same, with appId defaulted to the fake app. */
     callApp: (name, args = {}) => client.callTool({ name, arguments: { appId: APP_ID, ...args } }),
-    /** tools/list, cached per server. */
     async tools() {
       toolCache ??= (await client.listTools()).tools;
       return toolCache;
@@ -78,43 +56,32 @@ export async function startServer(opts = {}) {
   return h;
 }
 
-// ── Result helpers ───────────────────────────────────────────────────────────
-
-/** First text block of a result. */
 export const textOf = (res) => res?.content?.[0]?.text ?? "";
 
-/** Parse the first text block as JSON, falling back to the raw string. */
 export function parse(res) {
   const t = textOf(res);
   try { return JSON.parse(t); } catch { return t; }
 }
 
-/** Assert success and return the parsed body. */
 export function ok(res) {
   assert.notEqual(res.isError, true, `expected success, got error: ${textOf(res)}`);
   return parse(res);
 }
 
-/**
- * Normalize a tool error. Handler failures are structured: JSON text
- * { code, message, details? } (src/tools/error-boundary.ts). Errors raised by
- * the MCP SDK itself (unknown tool, input-schema violation) are plain text.
- */
+// Handler errors are JSON { code, message, details? }; SDK errors are plain text.
 export function toolError(res) {
   assert.equal(res.isError, true, `expected isError: true, got success: ${textOf(res).slice(0, 400)}`);
   const t = textOf(res);
   let body;
-  try { body = JSON.parse(t); } catch { /* plain text */ }
+  try { body = JSON.parse(t); } catch {}
   if (body && typeof body === "object" && typeof body.message === "string") {
     return { structured: true, code: body.code, message: body.message, details: body.details, raw: t };
   }
   return { structured: false, code: undefined, message: t, details: undefined, raw: t };
 }
 
-/** Every handler refusal must carry one of these codes. */
 const ERROR_CODES = new Set(CONTRACT_ERROR_CODES);
 
-/** Recursive "expected is a subset of actual" for details checks. */
 function assertSubset(actual, expected, path = "details") {
   if (expected === null || typeof expected !== "object") {
     assert.deepEqual(actual, expected, path);
@@ -124,12 +91,7 @@ function assertSubset(actual, expected, path = "details") {
   for (const [k, v] of Object.entries(expected)) assertSubset(actual[k], v, `${path}.${k}`);
 }
 
-/**
- * Assert a structured handler refusal: isError, a JSON payload, the given
- * `code`, a message containing every `messageIncludes` needle (string,
- * case-insensitive, or RegExp), and optionally `details` as a subset match.
- * For SDK-level errors (no handler ran) use expectSdkError / expectInvalidArgs.
- */
+// String needles match case-insensitively; `details` is a subset match.
 export function expectToolError(res, { code, messageIncludes, details } = {}) {
   assert.ok(code, "expectToolError needs the expected error code");
   assert.ok(ERROR_CODES.has(code), `"${code}" is not a known error code`);
@@ -145,8 +107,6 @@ export function expectToolError(res, { code, messageIncludes, details } = {}) {
   return e;
 }
 
-/** Assert an error produced by the MCP SDK before any handler ran (e.g. an
- *  unknown or unregistered tool): plain text, not a structured payload. */
 export function expectSdkError(res, messageIncludes) {
   const e = toolError(res);
   assert.ok(!e.structured, `expected an SDK error, got a handler error: ${e.raw}`);
@@ -154,8 +114,6 @@ export function expectSdkError(res, messageIncludes) {
   return e;
 }
 
-/** Assert the SDK rejected the arguments before the handler ran (zod input
- *  validation), naming the offending parameter. */
 export function expectInvalidArgs(res, param) {
   const e = toolError(res);
   assert.match(e.raw, /input validation error|invalid arguments/i, e.raw);
@@ -163,7 +121,6 @@ export function expectInvalidArgs(res, param) {
   return e;
 }
 
-/** True if any string anywhere in v contains needle. */
 export function deepIncludes(v, needle) {
   return JSON.stringify(v).includes(needle);
 }

@@ -71,8 +71,7 @@ export function registerAnalystTools(server: McpServer, engine: EngineClient): v
         value: r.qText ?? r.qNumber,
         isNumeric: r.qIsNumeric,
         ...(warnings.length ? { warnings } : {}),
-        // Always present, even when empty: "computed with no selections" is
-        // itself a claim the agent should be able to relay.
+        // Always present: "no selections" is itself a claim the agent relays.
         activeSelections: selections,
       });
     },
@@ -117,7 +116,6 @@ export function registerAnalystTools(server: McpServer, engine: EngineClient): v
       const obj = await app.createSessionObject(def);
       try {
         const layout = await obj.getLayout();
-        // A hypercube session object always lays out a qHyperCube.
         const cube = layout.qHyperCube!;
         (cube.qDimensionInfo ?? []).forEach((d, i) => {
           if (d.qError) warnings.push(`dimension "${dimensions[i]}": engine error qErrorCode=${d.qError.qErrorCode} — check the field name`);
@@ -167,7 +165,6 @@ export function registerAnalystTools(server: McpServer, engine: EngineClient): v
           await obj.searchListObjectFor("/qListObjectDef", searchTerm);
         }
         const layout = await obj.getLayout();
-        // A list-object session object always lays out a qListObject.
         const lo = layout.qListObject!;
         const page = lo.qDataPages?.[0];
         return text({
@@ -196,12 +193,6 @@ export function registerAnalystTools(server: McpServer, engine: EngineClient): v
     async ({ appId, field, values, toggle }) => {
       const app = await engine.app(appId);
       const f = await app.getField(field);
-      // Engine trap (measured on Qlik Cloud AND QSEoW): SelectValues with a
-      // text-only qText for a numeric field does not error — it silently
-      // selects nothing or widens the selection. Numeric field values must be
-      // sent as duals: { qText, qIsNumeric: true, qNumber }. Numeric-looking
-      // strings get the same treatment; for genuine text fields the engine
-      // matches on qText regardless, so the dual form is safe both ways.
       const fieldValues = buildSelectValues(values);
       const readSelection = async () => {
         const sel = await app.createSessionObject({
@@ -222,9 +213,7 @@ export function registerAnalystTools(server: McpServer, engine: EngineClient): v
       let verify: { count: number; sample?: string } | undefined;
       try {
         verify = await readSelection();
-        // Edge case: a TEXT field whose values merely look numeric ("2026"
-        // loaded as text) has no numeric representation, so the dual match
-        // can land empty. Retry once text-only and re-verify.
+        // A text field of numeric-looking values can miss the dual match: retry text-only.
         const sentNumeric = fieldValues.some((v) => v.qIsNumeric);
         if (verify.count === 0 && sentNumeric && !(toggle ?? false)) {
           ok = await f.selectValues(values.map((v) => ({ qText: String(v) })), false, false);

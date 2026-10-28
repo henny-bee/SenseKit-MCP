@@ -1,11 +1,7 @@
-// placeCell auto-placement: uniform sheets keep the classic 3-per-band
-// layout; taller tiles never get overlapped; explicit positions are honoured.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { placeCell, checkCellPlacement, cellBox } from "../../dist/viz/layout.js";
 
-/** Auto-place a sequence of visualizations on an empty 24x12 sheet. */
 function layout(vizs) {
   const props = { columns: 24, rows: 12, cells: [] };
   vizs.forEach((v, i) => placeCell(props, `o${i}`, v));
@@ -48,7 +44,7 @@ test("an explicit position is honoured as given and grows the grid", () => {
   const { cell, grid } = placeCell(p, "big", "kpi", { col: 20, row: 10, colspan: 8, rowspan: 6 });
   assert.deepEqual([cell.col, cell.row, cell.colspan, cell.rowspan], [20, 10, 8, 6]);
   assert.deepEqual(grid, { columns: 28, rows: 16 });
-  // Overlaps are allowed when the caller asks for them; the lint reports them.
+  // Explicit overlaps are allowed; the lint reports them.
   placeCell(p, "dup", "kpi", { col: 0, row: 0, colspan: 8, rowspan: 4 });
   assert.equal(overlaps(p).length, 1);
 });

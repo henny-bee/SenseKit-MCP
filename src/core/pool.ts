@@ -1,13 +1,7 @@
-/** How many engine/QRS requests one tool call keeps in flight. enigma
- *  multiplexes JSON-RPC over one socket, so concurrency cuts wall time
- *  without extra sessions; the bound keeps a 2,000-object app from flooding
- *  the engine (and the proxy's request queue) with one burst. */
+// enigma multiplexes one socket; the cap stops big apps flooding the engine.
 export const ENGINE_CONCURRENCY = 8;
 
-/** Map `fn` over `items` with at most `limit` calls in flight. Results come
- *  back in INPUT order regardless of completion order, so callers that used
- *  a sequential loop keep byte-identical output. Rejects with the first
- *  error, like Promise.all — wrap `fn` in try/catch for best-effort scans. */
+// Results keep input order; rejects on the first error, like Promise.all.
 export async function mapPool<T, R>(
   items: readonly T[],
   limit: number,

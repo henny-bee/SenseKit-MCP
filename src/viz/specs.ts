@@ -1,7 +1,3 @@
-// Shape specs per visualization type, derived from the chart-type registry
-// (viz/types/). Kept as a flat record because the gate, the tool
-// descriptions and the tests all read it by name.
-
 import { CHART_TYPES, CHART_TYPES_BY_NAME } from "./types/index.js";
 import type { VizSpec } from "./types/contract.js";
 
@@ -11,7 +7,6 @@ export const VIZ_SPECS: Record<string, VizSpec> = Object.fromEntries(CHART_TYPES
 
 export interface VizFinding { severity: "fail" | "warn"; message: string }
 
-/** Shape check for a visualization request; empty result = shape is fine. */
 export function checkVizShape(viz: string, nDims: number, nMeasures: number): VizFinding[] {
   const spec = VIZ_SPECS[viz];
   if (!spec) {

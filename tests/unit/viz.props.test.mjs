@@ -10,17 +10,14 @@ test("buildVizProps: pivot gets qMode P, listbox gets qListObjectDef, text-image
   const lb = buildVizProps("listbox", "t", ["Region"], []);
   assert.ok(lb.qListObjectDef);
   assert.ok(!lb.qHyperCubeDef);
-  // text-image renders authored text only — no cube, and no fabricated
-  // "[Measure 1]" placeholder text (that shipped to users once).
+  // text-image: no cube, no fabricated "[Measure 1]" text (it shipped once).
   const ti = buildVizProps("text-image", "Hello", [], []);
   assert.equal(ti.qHyperCubeDef, undefined);
   assert.equal(ti.markdown, "Hello");
-  assert.equal(checkVizShape("text-image", 0, 1)[0].severity, "fail"); // measures refused
+  assert.equal(checkVizShape("text-image", 0, 1)[0].severity, "fail");
   const bar = buildVizProps("barchart", "t", ["Region"], ["Sum(Sales)"]);
   assert.equal(bar.qHyperCubeDef.qMeasures[0].qDef.qDef, "=Sum(Sales)");
 });
-
-// ── buildVizProps: backward compatibility ────────────────────────────────────
 
 test("buildVizProps: plain strings == equivalent spec objects, with or without empty options", () => {
   const cases = [
@@ -56,8 +53,6 @@ test("buildVizProps: styling never leaks into the shared nebula defaults", () =>
   assert.deepEqual(buildVizProps("barchart", "t", ["R"], ["Sum(X)"]), before);
 });
 
-// ── buildVizProps: labels, master links, formats, options ────────────────────
-
 test("buildVizProps barchart: labels, sort, master links, number format, options", () => {
   const bar = buildVizProps("barchart", "t",
     [{ field: "Region", label: "Sales region", sort: "desc" }, { libraryId: "lib-d" }],
@@ -68,14 +63,14 @@ test("buildVizProps barchart: labels, sort, master links, number format, options
   assert.deepEqual(d1.qDef.qSortCriterias, [{ qSortByNumeric: -1, qSortByAscii: -1, qSortByLoadOrder: 1 }]);
   assert.equal(d1.qDef.autoSort, false);
   assert.equal(d2.qLibraryId, "lib-d");
-  assert.equal(d2.qDef.qFieldDefs, undefined); // no inline def beside the link
+  assert.equal(d2.qDef.qFieldDefs, undefined);
   assert.equal(d2.qDef.cId, "d2");
   const [m1, m2] = bar.qHyperCubeDef.qMeasures;
   assert.equal(m1.qDef.qLabel, "Revenue");
   assert.equal(m1.qDef.qNumFormat.qType, "M");
   assert.equal(m1.qDef.numFormatFromTemplate, false);
   assert.equal(m2.qLibraryId, "lib-m");
-  assert.equal(m2.qDef.qDef, undefined); // library measure: no inline expression
+  assert.equal(m2.qDef.qDef, undefined);
   assert.equal(m2.qDef.cId, "m2");
   assert.deepEqual(bar.color.paletteColor, { color: "#1f77b4", index: -1 });
   assert.deepEqual([bar.color.auto, bar.color.mode], [false, "primary"]);
@@ -101,7 +96,6 @@ test("buildVizProps barchart: colorMode byDimension/byMeasure and per-measure co
 
 test("buildVizProps kpi: library measure matches the client's link shape, label + format inline", () => {
   const lib = buildVizProps("kpi", "K", [], [{ libraryId: "fixture-measure-1" }]);
-  // same shape as the recorded client-authored KPI fixture
   assert.deepEqual(lib.qHyperCubeDef.qMeasures, fixture("kpi_library_ref.json").qHyperCubeDef.qMeasures);
   const inline = buildVizProps("kpi", "K", [], [{ expression: "Sum(Sales)", label: "Sales", numberFormat: { type: "integer" } }]);
   const q = inline.qHyperCubeDef.qMeasures[0].qDef;
@@ -144,7 +138,7 @@ test("buildVizProps gauge: library measure + number format replace the harvested
   assert.equal(m.qLibraryId, "lib-m");
   assert.equal(m.qDef.qDef, undefined);
   assert.deepEqual(m.qDef.qNumFormat, { qType: "F", qFmt: "0%", qnDec: 0, qUseThou: 0, qDec: ".", qThou: "," });
-  assert.equal(g.gaugetype, "radial"); // harvested blocks intact
+  assert.equal(g.gaugetype, "radial");
   const labelled = buildVizProps("gauge", "G", [], [{ expression: "Sum(X)", label: "Fill" }]);
   assert.deepEqual([labelled.qHyperCubeDef.qMeasures[0].qDef.qDef, labelled.qHyperCubeDef.qMeasures[0].qDef.qLabel], ["Sum(X)", "Fill"]);
 });
@@ -170,8 +164,6 @@ test("buildVizProps listbox: calculated dim and master dimension", () => {
   assert.equal(lib.qListObjectDef.qLibraryId, "lib-d");
   assert.deepEqual(lib.qListObjectDef.qDef, {});
 });
-
-// ── Filterpane ───────────────────────────────────────────────────────────────
 
 test("buildVizProps action-button: label, background and navigation in the supernova's shape", () => {
   const b = buildVizProps("action-button", "Go to sales", [], [], { color: "#1f3a5f", navigateTo: { action: "goToSheet", sheetId: "s1" } });
@@ -210,15 +202,13 @@ test("filterpane: spec, parent has no cube, one listbox child per dimension", ()
   assert.equal(pane.visualization, "filterpane");
   const kids = buildFilterpaneChildren(["Region", { expression: "Year(D)", label: "Year" }, { libraryId: "lib-d" }]);
   assert.equal(kids.length, 3);
-  // a plain-field child is exactly the standalone (render-verified) listbox
+  // a plain-field child equals the render-verified standalone listbox
   assert.deepEqual(kids[0], buildVizProps("listbox", "Region", ["Region"], []));
   assert.equal(kids[1].title, "Year");
   assert.deepEqual(kids[1].qListObjectDef.qDef.qFieldDefs, ["=Year(D)"]);
   assert.equal(kids[2].qListObjectDef.qLibraryId, "lib-d");
   assert.ok(kids.every((k) => k.visualization === "listbox"));
 });
-
-// ── Null and zero rows, pivot columns, combo series ─────────────────────────
 
 test("buildVizProps: includeNulls false sets qNullSuppression on hypercube dimensions only", () => {
   const dims = [{ field: "Region", includeNulls: false }, "Product"];
@@ -227,7 +217,7 @@ test("buildVizProps: includeNulls false sets qNullSuppression on hypercube dimen
     assert.equal(qd[0].qNullSuppression, true, viz);
     assert.notEqual(qd[1].qNullSuppression, true, viz);
   }
-  // true is the client default: the same definition as leaving it out.
+  // true is the client default, so same as omitting it.
   assert.deepEqual(
     buildVizProps("barchart", "t", [{ field: "Region", includeNulls: true }], ["Sum(Sales)"]),
     buildVizProps("barchart", "t", ["Region"], ["Sum(Sales)"]),
@@ -259,20 +249,17 @@ test("buildVizProps combochart: series and measure colors in the client's combo 
     { expression: "Sum(Margin)/Sum(Sales)", series: { type: "line", axis: "secondary" } },
   ]);
   const [m1, m2] = props.qHyperCubeDef.qMeasures;
-  // Once one measure names a series, every measure gets one (default bar, primary).
+  // Once one measure names a series, all get one (default bar, primary).
   assert.deepEqual(m1.qDef.series, { type: "bar", axis: 0 });
   assert.deepEqual(m2.qDef.series, { type: "line", axis: 1 });
   assert.deepEqual(props.measureAxes.map((a) => a.dock), ["near", "far"]);
   assert.deepEqual(m1.qDef.color, { on: true, mode: "primary", paletteColor: { index: -1, color: "#1f4e79", alpha: 1 } });
   assert.equal(m1.qDef.coloring, undefined);
   assert.equal(props.color.useBaseColors, "off");
-  // Everything on the primary axis: no second axis block.
   const primary = buildVizProps("combochart", "t", ["Month"], [{ expression: "Sum(A)", series: { type: "marker" } }]);
   assert.equal(primary.measureAxes, undefined);
   assert.deepEqual(primary.qHyperCubeDef.qMeasures[0].qDef.series, { type: "marker", axis: 0 });
 });
-
-// ── Client chart types built from the supernovas' own property sets ─────────
 
 test("bulletchart: per-measure target as qDef.target plus the bullet-target attribute expression", () => {
   const b = buildVizProps("bulletchart", "t", ["Year"], [{ expression: "Sum(Sales)", target: "Sum(Budget)" }], { color: "#1f3a5f", orientation: "vertical" });
@@ -296,7 +283,7 @@ test("bulletchart: per-measure target as qDef.target plus the bullet-target attr
   assert.deepEqual(ranked.color.bar, { index: -1, color: "#123456" }); // sort must not touch the bullet's colors
   assert.equal(buildVizProps("boxplot", "t", ["C"], ["Sum(S)"], { includeZeros: false }).boxplotDef.qHyperCubeDef.qSuppressZero, true);
   assert.equal(buildVizProps("distributionplot", "t", ["C"], ["Sum(S)"], { includeZeros: false }).qHyperCubeDef.qSuppressZero, true);
-  // The client's data limits: a dimension allows one measure, none allows 15.
+  // Client limits: one measure with a dimension, up to 15 without.
   assert.deepEqual(checkVizShape("bulletchart", 0, 15), []);
   assert.match(checkVizShape("bulletchart", 1, 2)[0].message, /exactly 1 measure/);
   assert.equal(checkVizShape("bulletchart", 0, 16)[0].severity, "fail");

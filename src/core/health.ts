@@ -1,7 +1,4 @@
-/** Flatten the engine healthcheck payload into the numbers an operator asks
- *  for first; the raw payload rides along untouched. */
-/** The engine /healthcheck payload. Every field is optional: older engine
- *  builds report counts where newer ones report arrays (see apps.*). */
+// Older engines report counts where newer ones report arrays (apps.*).
 export interface HealthcheckPayload {
   version?: unknown;
   started?: unknown;

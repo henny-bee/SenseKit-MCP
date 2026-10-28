@@ -1,7 +1,5 @@
 #!/usr/bin/env node
-// Integration smoke test: spawns the MCP server over stdio and exercises
-// admin + developer + analyst tools against a live QSEoW site.
-// Requires env (see .env.example) and reachable QRS/engine ports.
+// Live-site smoke test; env per .env.example (SMOKE_APP_NAME optional).
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
 
@@ -56,7 +54,6 @@ const step = async (label, fn) => {
   }
 };
 
-// ---- admin
 const tools = await client.listTools();
 log("tools registered", tools.tools.map((t) => t.name).join(", "));
 
@@ -111,7 +108,6 @@ await step("qrs_search dataconnection full:true redacts secrets", async () => {
   return `clean (${raw.length} chars scanned)`;
 });
 
-// ---- developer: create demo app if absent
 let appId;
 await step("find-or-create demo app", async () => {
   const apps = JSON.parse(await call("list_apps", { filter: `name eq '${APP_NAME}'` }));
@@ -140,9 +136,7 @@ if (appId) {
     return JSON.stringify(r.rows);
   });
   await step("numeric selection lands exactly (Sales=120)", async () => {
-    // Regression for the silent-widening bug: text-only qText against a
-    // numeric field selects nothing/widens without error. Numeric dual must
-    // select exactly one value.
+    // Text-only qText on a numeric field silently widens; numeric dual must not.
     await call("clear_selections", { appId });
     const r = JSON.parse(await call("select_field_values", { appId, field: "Sales", values: [120] }));
     if (r.selectedCount !== 1) throw new Error(`expected selectedCount 1, got ${r.selectedCount} (mode=${r.mode})`);
@@ -161,8 +155,6 @@ if (appId) {
   await step("get_field_values Month", () => call("get_field_values", { appId, field: "Month" }));
 }
 
-// ---- inspector tools (Tier 1: the troubleshooting loop)
-// Requires the sheet/measure fixture: node scripts/fixture_sheet.mjs <appId>
 if (appId) {
   let smokeSheetId, kpiObjectId, smokeMeasureId;
   await step("list_sheets finds fixture sheet", async () => {
@@ -209,10 +201,7 @@ if (appId) {
     return `expr=${r.expression} value=${r.value}`;
   });
   await step("search_expressions('Sales') spans objects+measures", async () => {
-    // Script matches are NOT required here: the demo app is published, and
-    // the engine hides a published app's script from user identities (JWT
-    // mode). Script-layer search + lineage are asserted below on the owned
-    // unpublished copy — the documented support-agent pattern.
+    // No script match expected: engine hides published apps' script in JWT mode.
     const r = JSON.parse(await call("search_expressions", { appId, term: "Sales" }));
     const kinds = new Set(r.matches.map((m) => m.kind));
     for (const want of ["object", "master_measure"]) {
@@ -223,7 +212,6 @@ if (appId) {
   });
 }
 
-// ---- explicit coverage: remaining list tools (envelope shape asserted)
 const envelope = (r) => {
   const p = JSON.parse(r);
   if (!Array.isArray(p.items) || typeof p.total !== "number") throw new Error(`bad envelope: ${r.slice(0, 120)}`);
@@ -242,8 +230,6 @@ await step("list_data_connections redacts", async () => {
 });
 await step("list_engine_apps", async () => `total=${envelope(await call("list_engine_apps", {})).total}`);
 
-// ---- mutation lifecycle on a disposable copy: copy -> set_script ->
-// reload -> evaluate -> publish -> delete. Leaves the site as it found it.
 const COPY_NAME = `MCP Smoke Copy`;
 const COPY_SCRIPT = `S: LOAD * INLINE [Sales\n42\n];`;
 let copyId;
@@ -276,7 +262,6 @@ if (copyId) {
     if (!r.some((l) => l.kind === "inline")) throw new Error(`no inline lineage: ${JSON.stringify(r).slice(0, 200)}`);
     return r.map((l) => l.kind).join(",");
   });
-  // ---- UI builder + validation gate (on the disposable copy: field Sales)
   let vizSheetId;
   await step("create_sheet on copy", async () => {
     const r = JSON.parse(await call("create_sheet", { appId: copyId, title: "Smoke Viz Sheet" }));
@@ -317,7 +302,6 @@ if (copyId) {
     });
   }
 
-  // ---- analytics trust envelope
   await step("evaluate_expression carries activeSelections", async () => {
     const r = JSON.parse(await call("evaluate_expression", { appId: copyId, expression: "Sum(Sales)" }));
     if (!Array.isArray(r.activeSelections)) throw new Error("no activeSelections");
@@ -334,8 +318,7 @@ if (copyId) {
     return `total=${r.total} sumOfGroups=${r.sumOfGroups} consistent`;
   });
   await step("crosscheck_expression flags non-additive measure", async () => {
-    // Demo app: Count(distinct Month)=2 overall, but each Region also has 2
-    // -> sum of groups 4 != 2. The classic double-count a naive agent reports.
+    // Count(distinct Month) is 2 overall and 2 per Region: groups sum to 4.
     await call("clear_selections", { appId });
     const r = JSON.parse(await call("crosscheck_expression", { appId, expression: "Count(distinct Month)", groupBy: "Region" }));
     if (r.consistent !== false) throw new Error(`expected inconsistent, got: ${JSON.stringify(r)}`);
@@ -343,8 +326,6 @@ if (copyId) {
   });
 
   await step("get_script redacts embedded credentials", async () => {
-    // Regression for the script-egress gap: scripts are a credential egress
-    // path just like QRS connection strings.
     await call("set_script", { appId: copyId, script: `SET vPassword = 'hunter2';\n${COPY_SCRIPT}` });
     const script = await call("get_script", { appId: copyId });
     if (script.includes("hunter2")) throw new Error("secret leaked through get_script");
@@ -382,7 +363,6 @@ if (copyId) {
   });
 }
 
-// ---- start_task: needs the persistent fixture task (bound to the demo app).
 let fixtureTaskId;
 await step("start_task (fixture 'MCP Smoke Task')", async () => {
   const tasks = envelope(await call("list_tasks", { filter: `name eq 'MCP Smoke Task'` }));
@@ -399,7 +379,6 @@ await step("start_task (fixture 'MCP Smoke Task')", async () => {
   throw new Error("task did not finish within 120s");
 });
 
-// ---- ops tools (Tier 2): reload forensics, engine health, rule audit, QPS
 if (fixtureTaskId) {
   await step("get_reload_log returns status + script-log tail", async () => {
     const r = JSON.parse(await call("get_reload_log", { taskId: fixtureTaskId, tailLines: 50 }));
@@ -422,8 +401,6 @@ await step("security_rule_audit", async () => {
   const a = JSON.parse(await call("security_rule_audit", { limit: 5 }));
   if (!(a.totalRules > 0) || !(a.shippedRules > 0)) throw new Error(`implausible counts: ${JSON.stringify(a).slice(0, 200)}`);
   if (!Array.isArray(a.findings)) throw new Error("no findings array");
-  // Shipped wildcard rules (RootAdmin, resourceFilter '*', type ReadOnly)
-  // must NOT be flagged as risky custom rules.
   const shippedFlagged = a.findings.some((f) => ["RootAdmin", "OwnerRead", "ServiceAccount"].includes(f.ruleName) && f.severity === "high");
   if (shippedFlagged) throw new Error("shipped ReadOnly rule flagged as risky custom rule");
   const decoded = a.rules.items.every((r) => Array.isArray(r.actions));
@@ -431,8 +408,6 @@ await step("security_rule_audit", async () => {
   return `rules=${a.totalRules} (shipped=${a.shippedRules} custom=${a.customRules} disabled=${a.disabledRules}) findings=${a.findings.length}`;
 });
 
-// QPS tools register only when certificate material is configured (the QPS
-// REST API is certificate-only) — skip cleanly when absent.
 const hasQps = tools.tools.some((t) => t.name === "list_user_sessions");
 if (hasQps) {
   await step("list_user_sessions (nonexistent user -> 0 sessions)", async () => {

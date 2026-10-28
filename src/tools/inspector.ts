@@ -14,11 +14,6 @@ import { mapPool, ENGINE_CONCURRENCY } from "../core/pool.js";
 import { ToolError } from "../core/errors.js";
 import type { GenericObjectProperties } from "../qix/types.js";
 
-// The troubleshooting loop: KPI -> object -> sheet -> app -> script -> source.
-// Everything here is read-only introspection of a single app's definition
-// layer — the part of a Qlik estate a support engineer actually walks when a
-// number is wrong.
-
 export function registerInspectorTools(server: McpServer, engine: EngineClient): void {
   server.registerTool(
     "list_sheets",
@@ -47,7 +42,7 @@ export function registerInspectorTools(server: McpServer, engine: EngineClient):
       const app = await engine.app(appId);
       const sheet = await app.getObject(sheetId);
       const children = await sheet.getChildInfos();
-      // Bounded-parallel reads; mapPool returns them in sheet order.
+      // mapPool keeps sheet order.
       const out = await mapPool(children, ENGINE_CONCURRENCY, async (c) => {
         let title: string | undefined;
         let visualization: string | undefined;
@@ -105,8 +100,7 @@ export function registerInspectorTools(server: McpServer, engine: EngineClient):
         const hay = caseSensitive ? s : s.toLowerCase();
         const i = hay.indexOf(needle);
         const start = Math.max(0, i - 60);
-        // Snippets are an egress path: a hit inside a connection string or a
-        // credential-bearing script line must not carry the secret out.
+        // A hit inside a connection string must not carry the secret out.
         return scrubString((start > 0 ? "…" : "") + s.slice(start, i + term.length + 60) + (i + term.length + 60 < s.length ? "…" : ""));
       };
       const hit = (where: Record<string, unknown>, path: string, s: string) => {
@@ -117,21 +111,17 @@ export function registerInspectorTools(server: McpServer, engine: EngineClient):
         }
       };
 
-      // 1. every app object's full properties, annotated with owning sheet
       const sheetOf = await objectToSheetMap(app);
       const infos = await app.getAllInfos();
       let objectsScanned = 0;
-      // Properties are fetched one bounded-parallel batch at a time, then
-      // matched strictly in getAllInfos order with the same cap checks as a
-      // sequential walk — so the result is identical; at most one batch is
-      // fetched beyond the point where the cap is hit.
+      // Fetch in batches but match in getAllInfos order, so results equal a sequential walk.
       scan: for (let start = 0; start < infos.length; start += ENGINE_CONCURRENCY) {
         if (matches.length >= cap) { truncated = true; break; }
         const batch = infos.slice(start, start + ENGINE_CONCURRENCY);
         const props = await mapPool(batch, ENGINE_CONCURRENCY, async (info): Promise<GenericObjectProperties | undefined> => {
           try {
             return await (await app.getObject(info.qId)).getProperties();
-          } catch { return undefined; /* not a generic object (fields, etc.) — skip */ }
+          } catch { return undefined; /* not a generic object */ }
         });
         for (const [j, info] of batch.entries()) {
           if (matches.length >= cap) { truncated = true; break scan; }
@@ -144,7 +134,6 @@ export function registerInspectorTools(server: McpServer, engine: EngineClient):
         }
       }
 
-      // 2. master measures + dimensions (their defs live outside object props)
       for (const [listDef, listKey, kind] of [
         [{ qMeasureListDef: { qType: "measure", qData: { def: "/qMeasure" } } }, "qMeasureList", "master_measure"],
         [{ qDimensionListDef: { qType: "dimension", qData: { def: "/qDim" } } }, "qDimensionList", "master_dimension"],
@@ -161,7 +150,6 @@ export function registerInspectorTools(server: McpServer, engine: EngineClient):
         }
       }
 
-      // 3. variables
       const vl = await app.createSessionObject({
         qInfo: { qType: "mcp-search-vars" },
         qVariableListDef: { qType: "variable", qData: { definition: "/qDefinition" } },
@@ -175,7 +163,6 @@ export function registerInspectorTools(server: McpServer, engine: EngineClient):
         await app.destroySessionObject(vl.id).catch(() => {});
       }
 
-      // 4. load script, with line numbers
       const script: string = await app.getScript();
       script.split("\n").forEach((line, i) => {
         if (matches.length >= cap) { truncated = true; return; }

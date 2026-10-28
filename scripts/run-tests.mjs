@@ -1,18 +1,6 @@
 #!/usr/bin/env node
-// Cross-platform test runner: finds tests/**/*.test.mjs and hands them to
-// `node --test`. Exists because Windows cmd does not expand globs, and
-// `node --test <dir>` glob support differs between Node 20 and 22+.
-//
-// Usage:
-//   node scripts/run-tests.mjs                 # every suite under tests/
-//   node scripts/run-tests.mjs unit            # only tests/unit
-//   node scripts/run-tests.mjs tools unit      # several suites
-//   node scripts/run-tests.mjs --coverage      # + coverage (Node >= 22), lcov -> coverage/lcov.info
-//   node scripts/run-tests.mjs tools -- --test-name-pattern=gating
-//
-// Anything after `--`, and any other `--flag`, is passed through to node.
-// Tests import from dist/, so build first (npm test does).
-
+// Usage: node scripts/run-tests.mjs [suite...] [--coverage] [-- node flags]
+// Own glob: Windows cmd doesn't expand globs; node --test globbing differs by version.
 import { spawn } from "node:child_process";
 import { readdirSync, existsSync, mkdirSync, statSync } from "node:fs";
 import { join, relative, resolve, dirname } from "node:path";
@@ -67,7 +55,6 @@ if (coverage) {
   mkdirSync(join(ROOT, "coverage"), { recursive: true });
   nodeArgs.push(
     "--experimental-test-coverage",
-    // Measure the shipped code, not the tests or their helpers.
     "--test-coverage-include=dist/**",
     "--test-reporter=spec", "--test-reporter-destination=stdout",
     "--test-reporter=lcov", `--test-reporter-destination=${join("coverage", "lcov.info")}`,

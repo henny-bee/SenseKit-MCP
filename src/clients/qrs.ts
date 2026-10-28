@@ -4,20 +4,13 @@ import { trustedCa, usesProxySession, vpPath, type Config } from "../config.js";
 import type { ProxySession, ProxyCredentials } from "./proxy-session.js";
 import { ToolError, httpErrorCode } from "../core/errors.js";
 
-/** QRS REST client. Certificate mode talks to :4242 directly as an internal
- *  service identity; jwt and windows mode go through the virtual proxy on
- *  :443, reusing one bootstrapped session rather than re-authenticating per
- *  call. */
 export class QrsClient {
   constructor(private cfg: Config, private session?: ProxySession) {}
 
   private xrfkey(): string {
-    return randomBytes(8).toString("hex"); // 16 chars
+    return randomBytes(8).toString("hex"); // QRS requires exactly 16 chars
   }
 
-  /** jwt/windows mode: a 401/403 (or a login redirect) from the proxy means
-   *  the cached session died (expired, proxy restarted); ProxySession.run
-   *  re-bootstraps it and retries once. */
   async request<T = unknown>(method: string, path: string, body?: unknown): Promise<T> {
     if (usesProxySession(this.cfg) && this.session) {
       return this.session.run((creds) => this.withSocketRetry<T>(method, path, body, creds));
@@ -25,8 +18,7 @@ export class QrsClient {
     return this.withSocketRetry<T>(method, path, body);
   }
 
-  /** Socket-level failures (a pooled connection the proxy already closed) are
-   *  transient; one retry on a fresh connection clears them. */
+  // The proxy may have closed a pooled socket; one retry on a fresh one clears it.
   private async withSocketRetry<T>(method: string, path: string, body: unknown, creds?: ProxyCredentials): Promise<T> {
     try {
       return await this.attempt<T>(method, path, body, creds);
@@ -87,8 +79,7 @@ export class QrsClient {
         res.on("data", (c) => chunks.push(c));
         res.on("end", () => {
           const text = Buffer.concat(chunks).toString("utf8");
-          // QRS itself never redirects; through a forms-login proxy a redirect
-          // is the login page, i.e. the session is gone. Never parse it as data.
+          // QRS never redirects: via a forms-login proxy a redirect means no session.
           if (viaProxy && res.statusCode && res.statusCode >= 300 && res.statusCode < 400) {
             reject(new ToolError("AUTH_ERROR", `QRS ${method} ${path} -> ${res.statusCode}: redirected to the proxy login, the session is not authenticated`,
               { status: res.statusCode, method, path }));
@@ -103,7 +94,6 @@ export class QrsClient {
           try { resolve(JSON.parse(text) as T); } catch { resolve(text as unknown as T); }
         });
       });
-      // Network-level failure (refused, TLS, reset): same message, typed code.
       req.on("error", (e) => reject(new ToolError("QRS_ERROR", e.message, { method, path })));
       if (payload) req.write(payload);
       req.end();

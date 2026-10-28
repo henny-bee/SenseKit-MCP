@@ -1,16 +1,3 @@
-// Architecture guard: the import graph of src/ must keep its layering.
-//
-//   core/     pure helpers, imports nothing outside core/
-//   clients/  transport clients: config.ts, core/, and qix/types.ts (type-only)
-//   qix/      engine helpers: never viz/, tools/, clients/ (types.ts imports nothing)
-//   viz/      chart model: never tools/
-//   tools/    MCP tool handlers: never server.ts / index.ts
-//   tools/index.ts is wired in by server.ts / index.ts only
-//
-// plus: every relative import resolves, and there are no import cycles.
-// Static (reads src/*.ts as text, no build, no dependencies). Every failure
-// names the offending file and import.
-
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readdirSync, readFileSync, existsSync, statSync } from "node:fs";
@@ -19,7 +6,6 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-/** Root-relative posix paths of files under `dir` with one of `exts`. */
 function walk(dir, exts) {
   const out = [];
   const abs = join(ROOT, dir);
@@ -32,14 +18,11 @@ function walk(dir, exts) {
   return out;
 }
 
-// Import/export statements that START a line (so commented-out code and
-// strings like "wss://" never match), possibly spanning lines, plus dynamic
-// import() calls and bare side-effect imports.
+// Line-anchored so commented-out code and strings like "wss://" never match.
 const STATIC = /^[ \t]*(import|export)\b([^;]*?)\bfrom\s+["']([^"']+)["']/gm;
 const SIDE_EFFECT = /^[ \t]*import\s+["']([^"']+)["']/gm;
-const DYNAMIC = /\bimport\(\s*["']([^"']+)["']\s*\)/g; // applied per non-comment line
+const DYNAMIC = /\bimport\(\s*["']([^"']+)["']\s*\)/g;
 
-/** Relative imports of one file: [{ spec, typeOnly }]. */
 function importsOf(rel) {
   const src = readFileSync(join(ROOT, rel), "utf8");
   const out = [];
@@ -49,13 +32,12 @@ function importsOf(rel) {
   }
   for (const m of src.matchAll(SIDE_EFFECT)) out.push({ spec: m[1], typeOnly: false });
   for (const line of src.split(/\r?\n/)) {
-    if (/^\s*(\/\/|\*|\/\*)/.test(line)) continue; // comment lines
+    if (/^\s*(\/\/|\*|\/\*)/.test(line)) continue;
     for (const m of line.matchAll(DYNAMIC)) out.push({ spec: m[1], typeOnly: false });
   }
   return out.filter((i) => i.spec.startsWith("."));
 }
 
-/** Resolve a TS relative import ("./x.js" -> "src/.../x.ts"). */
 function resolveTs(from, spec) {
   const base = posix.normalize(posix.join(posix.dirname(from), spec));
   const candidates = base.endsWith(".js")
@@ -64,10 +46,8 @@ function resolveTs(from, spec) {
   return candidates.find((c) => existsSync(join(ROOT, c)) && statSync(join(ROOT, c)).isFile());
 }
 
-// ── Build the graph once ─────────────────────────────────────────────────────
-
 const FILES = walk("src", [".ts"]).filter((f) => !f.endsWith(".d.ts"));
-const GRAPH = new Map(); // file -> [{ spec, target, typeOnly }]
+const GRAPH = new Map();
 const UNRESOLVED = [];
 for (const f of FILES) {
   const edges = [];
@@ -79,18 +59,14 @@ for (const f of FILES) {
   GRAPH.set(f, edges);
 }
 
-/** "core", "clients", "qix", "viz", "tools", or the top-level file name. */
-const layer = (f) => f.split("/")[1]; // "src/core/x.ts" -> "core", "src/server.ts" -> "server.ts"
+const layer = (f) => f.split("/")[1];
 const edges = () => [...GRAPH].flatMap(([from, es]) => es.map((e) => ({ from, ...e })));
 const fmt = (e) => `${e.from} → "${e.spec}" (${e.target})`;
 
-/** Assert no edge matches `bad`, listing every offender. */
 function assertNoEdges(description, bad) {
   const offenders = edges().filter(bad).map(fmt);
   assert.deepEqual(offenders, [], `${description}:\n  ${offenders.join("\n  ")}`);
 }
-
-// ── Tests ────────────────────────────────────────────────────────────────────
 
 test("architecture: the parser sees the real graph (guards against a vacuous pass)", () => {
   assert.ok(FILES.length >= 40, `only ${FILES.length} src files found`);

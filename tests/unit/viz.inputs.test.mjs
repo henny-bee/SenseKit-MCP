@@ -58,3 +58,11 @@ test("normalize: includeNulls and pivotColumn must be booleans; series type and 
   assert.throws(() => normalizeMeasures([{ expression: "Sum(X)", series: { type: "area" } }]), /series\.type must be one of bar, line, marker/);
   assert.throws(() => normalizeMeasures([{ expression: "Sum(X)", series: { axis: "left" } }]), /series\.axis must be one of primary, secondary/);
 });
+
+test("normalizeMeasures: target, operation and subtotal", () => {
+  assert.deepEqual(normalizeMeasures([{ expression: "Sum(S)", target: " Sum(B) ", operation: "subtract", subtotal: "Margin" }]),
+    [{ expression: "Sum(S)", target: "Sum(B)", operation: "subtract", subtotal: "Margin" }]);
+  assert.throws(() => normalizeMeasures([{ expression: "x", target: " " }]), /target must be an expression/);
+  assert.throws(() => normalizeMeasures([{ expression: "x", operation: "multiply" }]), /operation must be one of add, subtract, subtotal/);
+  assert.throws(() => normalizeMeasures([{ expression: "x", subtotal: "" }]), /subtotal must be a label/);
+});

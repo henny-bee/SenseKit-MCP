@@ -12,7 +12,7 @@ import { VIZ_SPECS } from "../viz/specs.js";
 import type { DimInput, MeasureInput } from "../viz/inputs.js";
 import { positionSchema, dimensionInputSchema, measureInputSchema, vizOptionsSchema } from "../viz/schemas.js";
 import { buildFilterpaneChildren } from "../viz/props.js";
-import { cubeDimSpecs, dimSpecFromDef, measureSpecFromDef, specsFromProps } from "../viz/read-back.js";
+import { cubeDefOf, cubeDimSpecs, dimSpecFromDef, measureSpecFromDef, specsFromProps } from "../viz/read-back.js";
 import { checkCellPlacement, cellBox, placeCell, placementFor } from "../viz/layout.js";
 import { validateObject, knownVisualizations, gateContext } from "../viz/validate.js";
 import { prepareDefinition, createVizObject } from "../viz/definition.js";
@@ -31,7 +31,7 @@ const dimensionsParam = z.array(dimensionInputSchema).optional()
 const measuresParam = z.array(measureInputSchema).optional()
   .describe("Expressions, e.g. 'Sum(Sales)', or objects {expression|libraryId, label?, numberFormat?, color?, series?} — exactly one of expression/libraryId (master measure)");
 const optionsParam = vizOptionsSchema.optional()
-  .describe("Styling: colorMode/color, showLegend, showDataLabels, orientation + stacked (barchart), sortByMeasure, includeZeros. Options that don't apply to the type are ignored and listed in the response's notes. NOT yet render-verified.");
+  .describe("Styling: colorMode/color, showLegend, showDataLabels, orientation + stacked (barchart), sortByMeasure, includeZeros; navigateTo (action-button). Options that don't apply to the type are ignored and listed in the response's notes. NOT yet render-verified.");
 
 export function registerBuilderTools(server: McpServer, engine: EngineClient, qrs: QrsClient, cfg: Config, writes: KeyedLock): void {
   server.registerTool(
@@ -123,8 +123,10 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
         "quality check in one call; the response's validation.status tells you whether it will actually render. " +
         `Supported types: ${Object.keys(VIZ_SPECS).join(", ")}. Dimensions are field names, calculated ` +
         "dimensions or master dimensions; measures are expressions or master measures, with optional label, " +
-        "number format and color. A filterpane gets one listbox per dimension. Refuses unknown fields, " +
-        "calculated-dimension errors, measure syntax errors and unknown master ids BEFORE creating. MUTATION (additive).",
+        "number format and color. A filterpane gets one listbox per dimension. An action-button is a button: " +
+        "title is its label, options.color its background, options.navigateTo where a click goes (a sheet, the " +
+        "next/previous/first/last sheet, or a website). Refuses unknown fields, calculated-dimension errors, " +
+        "measure syntax errors, unknown master ids and unknown target sheets BEFORE creating. MUTATION (additive).",
       inputSchema: {
         appId: guid.describe("App id (GUID)"),
         sheetId: z.string().describe("Sheet id (from create_sheet or list_sheets)"),
@@ -166,7 +168,8 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
         "Rebuild an existing builder-supported object in place (same object id, same visualization type) and " +
         "re-run the render-validation gate. Omitted title/dimensions/measures are carried over from the current " +
         "object (labels, number formats, master links included). Options are NOT merged: pass the full styling " +
-        "you want — omitted options revert to the defaults. Same pre-flight refusals as add_sheet_object. " +
+        "you want — omitted options revert to the defaults (an action-button keeps its navigation unless " +
+        "options.navigateTo is given). Same pre-flight refusals as add_sheet_object. " +
         "MUTATION: overwrites the object's properties.",
       inputSchema: {
         appId: guid.describe("App id (GUID)"),
@@ -201,13 +204,13 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
         }
       };
       const dims: ReadonlyArray<DimInput> = dimensions ?? await carry("dimensions", async () => {
-        if (!isPane) return current.qListObjectDef ? specsFromProps(current).dimensions : cubeDimSpecs(current.qHyperCubeDef ?? {});
+        if (!isPane) return current.qListObjectDef ? specsFromProps(current).dimensions : cubeDimSpecs(cubeDefOf(current) ?? {});
         const kids = await obj.getChildInfos();
         return Promise.all(kids.map(async (c, i) =>
           dimSpecFromDef((await (await app.getObject(c.qId)).getProperties()).qListObjectDef, `filterpane listbox ${i}`)));
       });
       const meas: ReadonlyArray<MeasureInput> = measures ?? await carry("measures", () =>
-        (current.qHyperCubeDef?.qMeasures ?? []).map((m, i) => measureSpecFromDef(m, `measure ${i}`)));
+        (cubeDefOf(current)?.qMeasures ?? []).map((m, i) => measureSpecFromDef(m, `measure ${i}`)));
       const currentTitle = typeof current.title === "string" ? current.title : undefined;
       const prepared = await prepareDefinition(app, "update", viz, title ?? currentTitle, dims, meas, options);
       const props = prepared.props;
@@ -217,6 +220,17 @@ export function registerBuilderTools(server: McpServer, engine: EngineClient, qr
         // text-image markdown verbatim rather than flattening them.
         props.title = current.title ?? "";
         if (viz === "text-image" && current.markdown !== undefined) props.markdown = current.markdown;
+        if (viz === "action-button" && current.style?.label !== undefined && props.style) props.style.label = current.style.label;
+      }
+      if (viz === "action-button") {
+        // What a button does is not styling: keep its actions (selections,
+        // variables, set in the client), and its navigation unless
+        // options.navigateTo replaces it.
+        if (Array.isArray(current.actions)) props.actions = current.actions;
+        if (options?.navigateTo === undefined && current.navigation) {
+          props.navigation = current.navigation;
+          prepared.notes.push("navigation carried over from the current button (pass options.navigateTo to change it)");
+        }
       }
       if (current.qMetaDef) props.qMetaDef = current.qMetaDef;
       await obj.setProperties(props);

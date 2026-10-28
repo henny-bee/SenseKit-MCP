@@ -143,6 +143,12 @@ export interface GenericObjectProperties {
   labels?: QBlock;
   barGrouping?: QBlock;
   orientation?: string;
+  // boxplot: its cube lives under boxplotDef (the client derives the box
+  // measures from it).
+  boxplotDef?: { qHyperCubeDef?: HyperCubeDef; [key: string]: unknown };
+  // action-button (sn-action-button): navigation after a click, and styling.
+  navigation?: { action?: string; sheet?: string; websiteUrl?: string; sameWindow?: boolean; [key: string]: unknown };
+  style?: QBlock;
   // Sheet properties.
   cells?: SheetCell[];
   columns?: number;
@@ -258,6 +264,7 @@ export interface NxFieldDescription { qName: string; [key: string]: unknown }
 export interface GenericObjectLayout {
   qInfo: NxInfo;
   qHyperCube?: HyperCubeLayout;
+  boxplotDef?: { qHyperCube?: HyperCubeLayout };
   qListObject?: ListObjectLayout;
   qSelectionObject?: { qSelections?: NxCurrentSelectionItem[] };
   qFieldList?: { qItems?: NxFieldDescription[] };

@@ -156,6 +156,23 @@ export function applyOptions(props: GenericObjectProperties, viz: string, o: Viz
   return props;
 }
 
+/** A hypercube in the shape the client writes (dimensions and measures with
+ *  cId, the cube flags a client-created chart starts with), for types whose
+ *  supernova brings its own property set instead of NEBULA_DEFAULTS. */
+export function clientCube(input: BuildInput, extra: Partial<HyperCubeDef> = {}): HyperCubeDef {
+  const { dims, meas } = input;
+  return {
+    qDimensions: dims.map((d, i) => finishNulls(finishDim(nebulaDim(fieldDef(d), `d${i + 1}`), d), d)),
+    qMeasures: meas.map((m, i) => finishMeasure(nebulaMeasure(m.expression ?? "", `m${i + 1}`), m)),
+    qInterColumnSortOrder: [...dims, ...meas].map((_, i) => i),
+    qInitialDataFetch: [{ qLeft: 0, qTop: 0, qWidth: Math.max(1, dims.length + meas.length), qHeight: 500 }],
+    qMode: "S",
+    qSuppressZero: false,
+    qSuppressMissing: true,
+    ...extra,
+  };
+}
+
 /** The straight hypercube most types use (kpi, the nebula charts, table,
  *  pivot-table, and any unknown/extension type). `nebula` adds the default
  *  supernova blocks plus the type's own `extras`; `pivot` switches the cube

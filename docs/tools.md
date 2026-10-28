@@ -393,7 +393,7 @@ Annotations: `readOnlyHint`: false, `destructiveHint`: false, `idempotentHint`: 
 
 **mutation-gated**
 
-Add a visualization to a sheet and IMMEDIATELY run the render-validation gate on it — creation and quality check in one call; the response's validation.status tells you whether it will actually render. Supported types: kpi, gauge, barchart, linechart, combochart, piechart, scatterplot, treemap, table, pivot-table, listbox, text-image, filterpane. Dimensions are field names, calculated dimensions or master dimensions; measures are expressions or master measures, with optional label, number format and color. A filterpane gets one listbox per dimension. Refuses unknown fields, calculated-dimension errors, measure syntax errors and unknown master ids BEFORE creating. MUTATION (additive).
+Add a visualization to a sheet and IMMEDIATELY run the render-validation gate on it — creation and quality check in one call; the response's validation.status tells you whether it will actually render. Supported types: kpi, gauge, barchart, linechart, combochart, piechart, scatterplot, treemap, bulletchart, boxplot, histogram, distributionplot, waterfallchart, mekkochart, table, pivot-table, listbox, text-image, filterpane, action-button. Dimensions are field names, calculated dimensions or master dimensions; measures are expressions or master measures, with optional label, number format and color. A filterpane gets one listbox per dimension. An action-button is a button: title is its label, options.color its background, options.navigateTo where a click goes (a sheet, the next/previous/first/last sheet, or a website). Refuses unknown fields, calculated-dimension errors, measure syntax errors, unknown master ids and unknown target sheets BEFORE creating. MUTATION (additive).
 
 Annotations: `readOnlyHint`: false, `destructiveHint`: false, `idempotentHint`: false, `openWorldHint`: false
 
@@ -423,15 +423,23 @@ Annotations: `readOnlyHint`: false, `destructiveHint`: false, `idempotentHint`: 
 | `measures[].series` | object | no | combochart only: bar/line/marker and primary/secondary axis |
 | `measures[].series.type` | "bar", "line", "marker" | no | Default bar |
 | `measures[].series.axis` | "primary", "secondary" | no | Default primary |
-| `options` | object | no | Styling: colorMode/color, showLegend, showDataLabels, orientation + stacked (barchart), sortByMeasure, includeZeros. Options that don't apply to the type are ignored and listed in the response's notes. NOT yet render-verified. |
+| `measures[].target` | string | no | bulletchart only: target marker expression, e.g. 'Sum(Budget)' |
+| `measures[].operation` | "add", "subtract", "subtotal" | no | waterfallchart only: add (default), subtract, or subtotal (shows the running total; its expression is not used) |
+| `measures[].subtotal` | string | no | waterfallchart only: add a subtotal bar with this label after the measure |
+| `options` | object | no | Styling: colorMode/color, showLegend, showDataLabels, orientation + stacked (barchart), sortByMeasure, includeZeros; navigateTo (action-button). Options that don't apply to the type are ignored and listed in the response's notes. NOT yet render-verified. |
 | `options.colorMode` | "auto", "single", "byDimension", "byMeasure" | no |  |
 | `options.color` | string | no | Color for colorMode 'single'; pattern `^#(?:[0-9a-f]{3}\|[0-9a-f]{6})$` |
 | `options.showLegend` | boolean | no |  |
 | `options.showDataLabels` | boolean | no |  |
-| `options.orientation` | "vertical", "horizontal" | no | barchart only |
+| `options.orientation` | "vertical", "horizontal" | no | barchart, bulletchart, boxplot, distributionplot |
 | `options.stacked` | boolean | no | barchart only |
 | `options.sortByMeasure` | "asc", "desc" | no | Sort by the first measure |
 | `options.includeZeros` | boolean | no | false hides rows whose measures are all zero, like unticking 'Include zero values' |
+| `options.navigateTo` | object | no | action-button only: where a click navigates |
+| `options.navigateTo.action` | "none", "goToSheet", "nextSheet", "prevSheet", "firstSheet", "lastSheet", "openWebsite" | yes | goToSheet needs sheetId; openWebsite needs url; none removes the navigation |
+| `options.navigateTo.sheetId` | string | no | goToSheet: target sheet id (list_sheets) |
+| `options.navigateTo.url` | string | no | openWebsite: http(s):// or mailto: URL |
+| `options.navigateTo.sameWindow` | boolean | no | openWebsite: open in the same tab (default: new tab) |
 | `position` | object | no | Omit to auto-place below existing cells |
 | `position.col` | integer | yes | min 0 |
 | `position.row` | integer | yes | min 0 |
@@ -442,7 +450,7 @@ Annotations: `readOnlyHint`: false, `destructiveHint`: false, `idempotentHint`: 
 
 **mutation-gated**
 
-Rebuild an existing builder-supported object in place (same object id, same visualization type) and re-run the render-validation gate. Omitted title/dimensions/measures are carried over from the current object (labels, number formats, master links included). Options are NOT merged: pass the full styling you want — omitted options revert to the defaults. Same pre-flight refusals as add_sheet_object. MUTATION: overwrites the object's properties.
+Rebuild an existing builder-supported object in place (same object id, same visualization type) and re-run the render-validation gate. Omitted title/dimensions/measures are carried over from the current object (labels, number formats, master links included). Options are NOT merged: pass the full styling you want — omitted options revert to the defaults (an action-button keeps its navigation unless options.navigateTo is given). Same pre-flight refusals as add_sheet_object. MUTATION: overwrites the object's properties.
 
 Annotations: `readOnlyHint`: false, `destructiveHint`: true, `idempotentHint`: true, `openWorldHint`: false
 
@@ -471,15 +479,23 @@ Annotations: `readOnlyHint`: false, `destructiveHint`: true, `idempotentHint`: t
 | `measures[].series` | object | no | combochart only: bar/line/marker and primary/secondary axis |
 | `measures[].series.type` | "bar", "line", "marker" | no | Default bar |
 | `measures[].series.axis` | "primary", "secondary" | no | Default primary |
-| `options` | object | no | Styling: colorMode/color, showLegend, showDataLabels, orientation + stacked (barchart), sortByMeasure, includeZeros. Options that don't apply to the type are ignored and listed in the response's notes. NOT yet render-verified. |
+| `measures[].target` | string | no | bulletchart only: target marker expression, e.g. 'Sum(Budget)' |
+| `measures[].operation` | "add", "subtract", "subtotal" | no | waterfallchart only: add (default), subtract, or subtotal (shows the running total; its expression is not used) |
+| `measures[].subtotal` | string | no | waterfallchart only: add a subtotal bar with this label after the measure |
+| `options` | object | no | Styling: colorMode/color, showLegend, showDataLabels, orientation + stacked (barchart), sortByMeasure, includeZeros; navigateTo (action-button). Options that don't apply to the type are ignored and listed in the response's notes. NOT yet render-verified. |
 | `options.colorMode` | "auto", "single", "byDimension", "byMeasure" | no |  |
 | `options.color` | string | no | Color for colorMode 'single'; pattern `^#(?:[0-9a-f]{3}\|[0-9a-f]{6})$` |
 | `options.showLegend` | boolean | no |  |
 | `options.showDataLabels` | boolean | no |  |
-| `options.orientation` | "vertical", "horizontal" | no | barchart only |
+| `options.orientation` | "vertical", "horizontal" | no | barchart, bulletchart, boxplot, distributionplot |
 | `options.stacked` | boolean | no | barchart only |
 | `options.sortByMeasure` | "asc", "desc" | no | Sort by the first measure |
 | `options.includeZeros` | boolean | no | false hides rows whose measures are all zero, like unticking 'Include zero values' |
+| `options.navigateTo` | object | no | action-button only: where a click navigates |
+| `options.navigateTo.action` | "none", "goToSheet", "nextSheet", "prevSheet", "firstSheet", "lastSheet", "openWebsite" | yes | goToSheet needs sheetId; openWebsite needs url; none removes the navigation |
+| `options.navigateTo.sheetId` | string | no | goToSheet: target sheet id (list_sheets) |
+| `options.navigateTo.url` | string | no | openWebsite: http(s):// or mailto: URL |
+| `options.navigateTo.sameWindow` | boolean | no | openWebsite: open in the same tab (default: new tab) |
 
 ### move_sheet_object
 

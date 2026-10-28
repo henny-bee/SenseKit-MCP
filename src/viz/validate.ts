@@ -1,8 +1,10 @@
 import type { QrsClient } from "../clients/qrs.js";
 import { expressionWarnings, masterItems, type MasterKind } from "../qix/quality.js";
+import { sheetList } from "../qix/objects.js";
 import { TtlCache } from "../core/cache.js";
 import { VIZ_SPECS, checkVizShape, type VizFinding } from "./specs.js";
 import { noEq } from "./inputs.js";
+import { cubeDefOf } from "./read-back.js";
 import { NEBULA_CHART_TYPES } from "./props.js";
 import type { Doc, GenericObject, GenericObjectProperties } from "../qix/types.js";
 
@@ -12,10 +14,16 @@ import type { Doc, GenericObject, GenericObjectProperties } from "../qix/types.j
  *  most once per call — and only if some object actually links to that kind
  *  — not once per object, when a sheet full of library-linked charts is
  *  checked. Safe under concurrent validation: the PROMISE is memoized. */
-export interface GateContext { masterIds: (kind: MasterKind) => Promise<Map<string, string>> }
+export interface GateContext {
+  masterIds: (kind: MasterKind) => Promise<Map<string, string>>;
+  /** The app's sheet ids, for buttons that navigate to a sheet. */
+  sheetIds: () => Promise<Set<string>>;
+}
 export function gateContext(app: Doc): GateContext {
   const memo = new Map<MasterKind, Promise<Map<string, string>>>();
+  let sheets: Promise<Set<string>> | undefined;
   return {
+    sheetIds: () => (sheets ??= sheetList(app).then((l) => new Set(l.map((s) => s.sheetId)))),
     masterIds: (kind) => {
       let p = memo.get(kind);
       if (!p) {
@@ -57,6 +65,16 @@ export async function validateObject(
     if (visualization && !knownViz.has(visualization)) {
       findings.push({ severity: "fail", message: `visualization "${visualization}" is neither a built-in nor an installed extension — renders as "Invalid visualization"` });
     }
+    // A button whose target sheet was deleted (or never set) does nothing
+    // when clicked; the engine has no opinion about it.
+    const nav = prop.navigation;
+    if (visualization === "action-button" && (nav?.action === "goToSheet" || nav?.action === "goToSheetById")) {
+      if (typeof nav.sheet !== "string" || nav.sheet === "") {
+        findings.push({ severity: "warn", message: `button navigation "${nav.action}" has no target sheet — clicking it does nothing` });
+      } else if (!(await ctx.sheetIds()).has(nav.sheet)) {
+        findings.push({ severity: "fail", message: `button navigates to sheet "${nav.sheet}", which does not exist in this app — clicking it does nothing` });
+      }
+    }
     const vspec = visualization ? VIZ_SPECS[visualization] : undefined;
     if (vspec && vspec.renderVerified === false) {
       findings.push({ severity: "warn", message: `${visualization} is not render-verified: the engine accepts it and it evaluates, but it has not been proven to paint in a browser client with generically-built properties — check it visually before shipping it to users` });
@@ -65,9 +83,10 @@ export async function validateObject(
     // A dangling qLibraryId persists without complaint and draws an error
     // tile. Checked against the app's master list rather than inferred from
     // qError, which the engine does not raise consistently for missing links.
+    const cubeDef = cubeDefOf(prop);
     const links: Array<{ where: string; kind: "measure" | "dimension"; id: string }> = [];
-    (prop.qHyperCubeDef?.qDimensions ?? []).forEach((d, i) => { if (d?.qLibraryId) links.push({ where: `dimension ${i}`, kind: "dimension", id: d.qLibraryId }); });
-    (prop.qHyperCubeDef?.qMeasures ?? []).forEach((m, i) => { if (m?.qLibraryId) links.push({ where: `measure ${i}`, kind: "measure", id: m.qLibraryId }); });
+    (cubeDef?.qDimensions ?? []).forEach((d, i) => { if (d?.qLibraryId) links.push({ where: `dimension ${i}`, kind: "dimension", id: d.qLibraryId }); });
+    (cubeDef?.qMeasures ?? []).forEach((m, i) => { if (m?.qLibraryId) links.push({ where: `measure ${i}`, kind: "measure", id: m.qLibraryId }); });
     if (prop.qListObjectDef?.qLibraryId) links.push({ where: "listbox", kind: "dimension", id: prop.qListObjectDef.qLibraryId });
     for (const l of links) {
       if (!(await ctx.masterIds(l.kind)).has(l.id)) {
@@ -76,7 +95,7 @@ export async function validateObject(
     }
 
     const layout = await obj.getLayout();
-    const hc = layout.qHyperCube;
+    const hc = layout.qHyperCube ?? layout.boxplotDef?.qHyperCube;
     if (hc) {
       (hc.qDimensionInfo ?? []).forEach((d, i) => {
         if (d.qError) findings.push({ severity: "fail", message: `dimension ${i} error qErrorCode=${d.qError.qErrorCode} (${d.qFallbackTitle ?? "?"}) — check the field name` });
@@ -95,7 +114,7 @@ export async function validateObject(
         if (missing.length) {
           findings.push({ severity: "fail", message: `${visualization} is nebula-rendered and is missing default property block(s): ${missing.join(", ")} — the engine computes it fine but the client throws and renders BLANK` });
         }
-        const noCid = (prop.qHyperCubeDef?.qMeasures ?? []).some((m) => !m.cId && !m.qDef?.cId);
+        const noCid = (cubeDef?.qMeasures ?? []).some((m) => !m.cId && !m.qDef?.cId);
         if (noCid) findings.push({ severity: "warn", message: "measures lack cId — some nebula charts need it for coloring/sorting" });
       }
       if (vspec?.pivot && hc.qMode !== "P" && hc.qMode !== "K") {
@@ -107,7 +126,7 @@ export async function validateObject(
       // Expression-level validation on inline defs. Library-linked entries
       // carry no inline qDef.qDef / qFieldDefs and are skipped here — their
       // definitions live in the master item (covered by the link check).
-      for (const [i, m] of (prop.qHyperCubeDef?.qMeasures ?? []).entries()) {
+      for (const [i, m] of (cubeDef?.qMeasures ?? []).entries()) {
         const def: string | undefined = m?.qLibraryId ? undefined : m?.qDef?.qDef;
         if (def) {
           for (const w of await expressionWarnings(app, noEq(def))) {
@@ -115,7 +134,7 @@ export async function validateObject(
           }
         }
       }
-      for (const [i, d] of (prop.qHyperCubeDef?.qDimensions ?? []).entries()) {
+      for (const [i, d] of (cubeDef?.qDimensions ?? []).entries()) {
         const fd: unknown = d?.qLibraryId ? undefined : d?.qDef?.qFieldDefs?.[0];
         if (typeof fd === "string" && fd.startsWith("=")) {
           for (const w of await expressionWarnings(app, fd.slice(1))) {

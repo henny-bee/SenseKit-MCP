@@ -32,8 +32,10 @@ export interface VizSpec {
 //
 // NOT render-verified: these blocks follow the client's documented property
 // shapes but have not yet been through scripts/render_proof.mjs.
+export type ColorMode = "auto" | "single" | "byDimension" | "byMeasure";
+
 export interface VizOptions {
-  colorMode?: "auto" | "single" | "byDimension" | "byMeasure";
+  colorMode?: ColorMode;
   color?: string;
   showLegend?: boolean;
   showDataLabels?: boolean;
@@ -42,6 +44,23 @@ export interface VizOptions {
   sortByMeasure?: "asc" | "desc";
   /** false = the client's "Include zero values" unticked (qSuppressZero). */
   includeZeros?: boolean;
+  /** action-button: where a click navigates (the client's "Navigation"). */
+  navigateTo?: NavigateTo;
+}
+
+/** Navigation actions the action-button supports, named as the client
+ *  stores them (navigation.action). */
+export const NAVIGATION_ACTIONS = ["none", "goToSheet", "nextSheet", "prevSheet", "firstSheet", "lastSheet", "openWebsite"] as const;
+export type NavigationAction = typeof NAVIGATION_ACTIONS[number];
+
+export interface NavigateTo {
+  action: NavigationAction;
+  /** goToSheet: the target sheet id. */
+  sheetId?: string;
+  /** openWebsite: http(s) or mailto URL. */
+  url?: string;
+  /** openWebsite: open in the same tab instead of a new one. */
+  sameWindow?: boolean;
 }
 
 /** Option keys a chart type can honour (`color` follows `colorMode`). */
@@ -71,6 +90,12 @@ export interface ChartType {
   nebula?: boolean;
   /** Styling options this type honours; anything else is reported as ignored. */
   options?: readonly OptionKey[];
+  /** With "colorMode" in options: the modes that mean something here (all
+   *  four when absent). Any other mode is reported as ignored. */
+  colorModes?: readonly ColorMode[];
+  /** A shape limit the min/max ranges cannot express (for example "one
+   *  measure when there is a dimension"); returns the reason it fails. */
+  shapeRule?(nDims: number, nMeasures: number): string | undefined;
   /** Per-measure colors (qDef.coloring.baseColor) are meaningful. */
   measureColors?: boolean;
   build(input: BuildInput): GenericObjectProperties;

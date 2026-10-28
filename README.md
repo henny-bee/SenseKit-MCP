@@ -11,18 +11,140 @@ SenseKit-MCP is a modification of [qseow-mcp](https://github.com/rmterenzi/qseow
 - **50 tools in three personas.** Analyst (query and trace), developer (scripts, reloads, apps, the sheet and chart builder, master items) and admin (inventory, tasks, reload forensics, engine health, security-rule audit, proxy sessions). You choose which groups to expose.
 - **Read-only by default.** The 16 tools that change anything are not even registered until you set `QSEOW_ALLOW_MUTATIONS=true`.
 - **Answers carry their context.** Value-returning analytics tools report the selections a number was computed under, and warn about unknown fields, which Qlik silently evaluates to 0 or null.
-- **A builder that checks what it builds.** `add_sheet_object` refuses bad definitions before writing anything, then runs a validation gate on the saved object. That gate catches the definitions the engine accepts but the Qlik client draws blank. It supports 13 chart types, master-item links, number formats and styling options.
+- **A builder that checks what it builds.** `add_sheet_object` refuses bad definitions before writing anything, then runs a validation gate on the saved object. That gate catches the definitions the engine accepts but the Qlik client draws blank. It supports 19 chart types plus navigation buttons, master-item links, number formats and styling options.
 - **Credential redaction** on every path that returns QRS entities, scripts, logs or object properties.
 - **Structured errors** (`{ code, message, details }`) that an agent can act on.
 - **Certificate, JWT or Windows-login authentication**, including the CSWSH handshake a virtual proxy requires for the engine WebSocket. Windows mode needs no certificates and no Qlik admin: it signs in through the hub's login page as your own account.
 
 ## Quick start
 
-You need Node.js 20 or later and access to a QSEoW site. The simplest start is certificate mode: in the QMC, go to **Certificates → Export** and choose PEM. That gives you `client.pem`, `client_key.pem` and `root.pem`. If you cannot get certificates, use windows mode with your own account (`QSEOW_AUTH_MODE=windows`, `QSEOW_USERNAME=DOMAIN\user`, `QSEOW_PASSWORD_PATH`). For JWT or windows mode, see [docs/authentication.md](docs/authentication.md).
+You need Node.js 20 or later and access to a QSEoW site.
 
-The commands below assume the package is published to npm as `sensekit-mcp`. Until it is, use [Run from source](#development).
+Pick an authentication mode first (full details in [docs/authentication.md](docs/authentication.md)):
 
-**Any MCP client (npx):**
+- Certificate mode (the default) uses `client.pem`, `client_key.pem` and `root.pem` exported as PEM from **QMC → Certificates → Export**.
+- Windows mode needs no certificates and no Qlik admin: it signs in through the hub's login page with your Windows account (`QSEOW_AUTH_MODE=windows`, `QSEOW_USERNAME=DOMAIN\user`, and `QSEOW_PASSWORD` or `QSEOW_PASSWORD_PATH`).
+- JWT mode authenticates with a signed token against a JWT virtual proxy (`QSEOW_AUTH_MODE=jwt`, and `QSEOW_JWT` or `QSEOW_JWT_PATH`).
+
+If you run from a local clone instead of `npx -y sensekit-mcp`, build once and create a `.env` file:
+
+```bash
+npm install          # installs dependencies and builds dist/index.js
+cp .env.example .env # fill in QSEOW_HOST and your auth settings
+```
+
+MCP clients launch the server from their own working directory, so point `QSEOW_ENV_PATH` at the absolute path to your `.env` file (or pass the `QSEOW_*` variables directly in the client config).
+
+### Claude Code
+
+Using `npx` (published package):
+
+```bash
+claude mcp add sensekit --scope user \
+  -e QSEOW_HOST=sense.example.com \
+  -e QSEOW_CERT_PATH=/absolute/path/to/client.pem \
+  -e QSEOW_CERT_KEY_PATH=/absolute/path/to/client_key.pem \
+  -e QSEOW_ROOT_CERT_PATH=/absolute/path/to/root.pem \
+  -- npx -y sensekit-mcp
+```
+
+Using a local clone and `.env`:
+
+```bash
+claude mcp add sensekit --scope user \
+  -e QSEOW_ENV_PATH=/absolute/path/to/SenseKit-MCP/.env \
+  -- node /absolute/path/to/SenseKit-MCP/dist/index.js
+```
+
+### Claude Desktop
+
+Download `sensekit-mcp-<version>.mcpb` from [Releases](https://github.com/henny-bee/SenseKit-MCP/releases), or build it locally with `npm run bundle`, then open the `.mcpb` file. Claude Desktop prompts for the host, auth mode and certificate paths without editing JSON.
+
+To configure `claude_desktop_config.json` manually instead, open **Settings → Developer → Edit Config** (`%APPDATA%\Claude\claude_desktop_config.json` on Windows, `~/Library/Application Support/Claude/claude_desktop_config.json` on macOS):
+
+```jsonc
+{
+  "mcpServers": {
+    "sensekit": {
+      "command": "node",
+      "args": ["/absolute/path/to/SenseKit-MCP/dist/index.js"],
+      "env": {
+        "QSEOW_ENV_PATH": "/absolute/path/to/SenseKit-MCP/.env"
+      }
+    }
+  }
+}
+```
+
+### Cursor
+
+Add the server to `~/.cursor/mcp.json` (global) or `.cursor/mcp.json` (project), then enable it under **Cursor Settings → MCP**:
+
+```jsonc
+{
+  "mcpServers": {
+    "sensekit": {
+      "command": "node",
+      "args": ["/absolute/path/to/SenseKit-MCP/dist/index.js"],
+      "env": {
+        "QSEOW_ENV_PATH": "/absolute/path/to/SenseKit-MCP/.env"
+      }
+    }
+  }
+}
+```
+
+### OpenCode
+
+Add via CLI (writes to `~/.config/opencode/opencode.json`):
+
+```bash
+opencode mcp add sensekit --global \
+  --env QSEOW_ENV_PATH=/absolute/path/to/SenseKit-MCP/.env \
+  -- node /absolute/path/to/SenseKit-MCP/dist/index.js
+```
+
+Or add it under `mcp.servers` in `~/.config/opencode/opencode.json` (or project `opencode.json`):
+
+```jsonc
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "servers": {
+      "sensekit": {
+        "type": "local",
+        "command": [
+          "node",
+          "/absolute/path/to/SenseKit-MCP/dist/index.js"
+        ],
+        "cwd": "/absolute/path/to/SenseKit-MCP",
+        "environment": {
+          "QSEOW_ENV_PATH": "/absolute/path/to/SenseKit-MCP/.env"
+        }
+      }
+    }
+  }
+}
+```
+
+### VS Code (GitHub Copilot), Windsurf & other MCP clients
+
+For **VS Code** (`.vscode/mcp.json`, using `"servers"` instead of `"mcpServers"`):
+
+```jsonc
+{
+  "servers": {
+    "sensekit": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["/absolute/path/to/SenseKit-MCP/dist/index.js"],
+      "envFile": "/absolute/path/to/SenseKit-MCP/.env"
+    }
+  }
+}
+```
+
+For **Windsurf** (`~/.codeium/windsurf/mcp_config.json`), **Cline**, or any standard `mcpServers` client with inline environment variables:
 
 ```jsonc
 {
@@ -40,19 +162,6 @@ The commands below assume the package is published to npm as `sensekit-mcp`. Unt
   }
 }
 ```
-
-**Claude Code, one line:**
-
-```bash
-claude mcp add sensekit --scope user \
-  -e QSEOW_HOST=sense.example.com \
-  -e QSEOW_CERT_PATH=/absolute/path/to/client.pem \
-  -e QSEOW_CERT_KEY_PATH=/absolute/path/to/client_key.pem \
-  -e QSEOW_ROOT_CERT_PATH=/absolute/path/to/root.pem \
-  -- npx -y sensekit-mcp
-```
-
-**Claude Desktop bundle:** download `sensekit-mcp-<version>.mcpb` from the project's [releases](https://github.com/henny-bee/SenseKit-MCP/releases), or build it yourself with `npm run bundle`, then open it. Claude Desktop asks for the host, auth mode and certificate files; there is no JSON to edit.
 
 The server starts **read-only**. To allow write tools, add `QSEOW_ALLOW_MUTATIONS=true`, preferably against a test site first. On start it prints one line to stderr with the host, auth mode, enabled groups and mutation status.
 
@@ -143,7 +252,9 @@ Dimensions can be field names, calculated dimensions (`=...`) or master dimensio
   - per-measure colors and number formats;
   - master-item links (`libraryId`) in charts;
   - labels, sort and calculated dimensions in the object form;
-  - the filterpane.
+  - the filterpane;
+  - the action-button (navigation buttons);
+  - the bullet chart, box plot, histogram, distribution plot, waterfall chart and Mekko chart.
 
   No live site was available while these were developed. The engine-side gate checks them, but nobody has looked at them in a browser.
 - **How to verify:** build the objects on a test site, then run `scripts/render_proof.mjs` with Playwright and a JWT virtual proxy. It renders each object in a headless browser at two tile sizes, saves a screenshot per object, and exits non-zero unless everything rendered. The screenshots are the evidence; see [docs/chart-building.md](docs/chart-building.md#verifying-rendering-with-render_proofmjs).

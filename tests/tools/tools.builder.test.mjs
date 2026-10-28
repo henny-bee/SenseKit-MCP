@@ -186,6 +186,13 @@ describe("builder: add_sheet_object", () => {
       listbox: [["Region"], []],
       "text-image": [[], []],
       filterpane: [["Region", { expression: "=Year(OrderDate)", label: "Year" }], []],
+      "action-button": [[], []],
+      bulletchart: [["Region"], [{ expression: "Sum(Sales)", target: "Avg(Sales)" }]],
+      boxplot: [["Product", "Region"], ["Sum(Sales)"]],
+      histogram: [["Sales"], []],
+      distributionplot: [["Product", "Region"], ["Sum(Sales)"]],
+      waterfallchart: [[], ["Sum(Sales)", { expression: "Count(Sales)", operation: "subtract", subtotal: "Net" }]],
+      mekkochart: [["Region", "Product"], ["Sum(Sales)"]],
     };
     const sheet = await newSheet(h, "All types");
     for (const [visualization, [dimensions, measures]] of Object.entries(shapes)) {
@@ -208,6 +215,42 @@ describe("builder: add_sheet_object", () => {
     assert.equal(kids.length, 3);
     for (const k of kids) assert.ok(h.doc.objects.get(k).props.qListObjectDef, "child is a listbox");
     assert.equal(body.validation.status, "warn"); // not render-verified yet, but not failing
+  });
+
+  test("an action-button gets its label, color and target sheet, auto-placed as a small tile", async () => {
+    const target = await newSheet(h, "Target");
+    const sheet = await newSheet(h, "Buttons");
+    const body = ok(await h.callApp("add_sheet_object", {
+      sheetId: sheet, visualization: "action-button", title: "Go to target",
+      options: { color: "#1f3a5f", navigateTo: { action: "goToSheet", sheetId: target } },
+    }));
+    assert.equal(body.validation.status, "warn", JSON.stringify(body.validation.findings)); // not render-verified
+    assert.deepEqual([body.cell.colspan, body.cell.rowspan], [4, 2]);
+    const props = h.doc.objects.get(body.objectId).props;
+    assert.equal(props.qHyperCubeDef, undefined);
+    assert.equal(props.style.label, "Go to target");
+    assert.deepEqual(props.style.background.color, { index: -1, color: "#1f3a5f" });
+    assert.deepEqual(props.navigation, { action: "goToSheet", sheet: target });
+  });
+
+  test("an action-button to a sheet that does not exist is refused before anything is written", async () => {
+    await refusedWithoutSideEffects(h, "add_sheet_object", {
+      sheetId, visualization: "action-button", title: "Nowhere", options: { navigateTo: { action: "goToSheet", sheetId: "no-such-sheet" } },
+    }, { code: "NOT_FOUND", messageIncludes: ["refusing to create", "no-such-sheet"], details: { sheetId: "no-such-sheet" } });
+    await refusedWithoutSideEffects(h, "add_sheet_object", {
+      sheetId, visualization: "action-button", options: { navigateTo: { action: "goToSheet" } },
+    }, { code: "INVALID_INPUT", messageIncludes: "needs sheetId" });
+  });
+
+  test("the gate fails a button whose target sheet no longer exists", async () => {
+    const btn = ok(await h.callApp("add_sheet_object", { sheetId, visualization: "action-button", title: "Next", options: { navigateTo: { action: "nextSheet" } } }));
+    const obj = await h.doc.api.getObject(btn.objectId);
+    const p = await obj.getProperties();
+    p.navigation = { action: "goToSheet", sheet: "deleted-sheet" };
+    await obj.setProperties(p);
+    const gate = ok(await h.callApp("validate_sheet", { objectId: btn.objectId }));
+    assert.equal(gate.status, "fail");
+    assert.ok(gate.findings.some((f) => /navigates to sheet "deleted-sheet", which does not exist/.test(f.message)), JSON.stringify(gate.findings));
   });
 
   test("auto-placement never overlaps an earlier, taller tile", async () => {
@@ -328,6 +371,43 @@ describe("builder: update_sheet_object", () => {
     await obj.setProperties(p);
     ok(await h.callApp("update_sheet_object", { objectId: kpi.objectId, measures: ["Count(Sales)"] }));
     assert.deepEqual(h.doc.objects.get(kpi.objectId).props.title, { qStringExpression: { qExpr: "='Total'" } });
+  });
+
+  test("a boxplot title-only update keeps the cube under boxplotDef", async () => {
+    const box = await add({ visualization: "boxplot", title: "Before", dimensions: ["Product", "Region"], measures: ["Sum(Sales)"] });
+    const before = h.doc.objects.get(box.objectId).props.boxplotDef.qHyperCubeDef;
+    ok(await h.callApp("update_sheet_object", { objectId: box.objectId, title: "After" }));
+    const after = h.doc.objects.get(box.objectId).props;
+    assert.equal(after.title, "After");
+    assert.equal(after.qHyperCubeDef, undefined);
+    assert.deepEqual(after.boxplotDef.qHyperCubeDef.qDimensions.map((d) => d.qDef.qFieldDefs[0]), before.qDimensions.map((d) => d.qDef.qFieldDefs[0]));
+    assert.equal(after.boxplotDef.qHyperCubeDef.qMeasures[0].qDef.qDef, before.qMeasures[0].qDef.qDef);
+  });
+
+  test("a waterfall update keeps each measure's operation and subtotal", async () => {
+    const w = await add({ visualization: "waterfallchart", measures: ["Sum(Sales)", { expression: "Count(Sales)", operation: "subtract", subtotal: "Net" }] });
+    ok(await h.callApp("update_sheet_object", { objectId: w.objectId, title: "Renamed" }));
+    const q = h.doc.objects.get(w.objectId).props.qHyperCubeDef.qMeasures.map((m) => m.qDef);
+    assert.deepEqual(q.map((d) => d.valueType), ["NORMAL", "INVERSE"]);
+    assert.deepEqual(q[1].subtotal, { enable: true, label: "Net" });
+  });
+
+  test("an action-button update keeps its navigation, client-set actions and label unless replaced", async () => {
+    const target = await newSheet(h, "Target");
+    const btn = await add({ visualization: "action-button", title: "Go", options: { navigateTo: { action: "goToSheet", sheetId: target } } });
+    const obj = await h.doc.api.getObject(btn.objectId);
+    const p = await obj.getProperties();
+    p.actions = [{ actionType: "clearAll", softLock: false }];
+    await obj.setProperties(p);
+    const body = ok(await h.callApp("update_sheet_object", { objectId: btn.objectId, options: { color: "#264653" } }));
+    const after = h.doc.objects.get(btn.objectId).props;
+    assert.deepEqual(after.navigation, { action: "goToSheet", sheet: target });
+    assert.deepEqual(after.actions, [{ actionType: "clearAll", softLock: false }]);
+    assert.equal(after.style.label, "Go");
+    assert.deepEqual(after.style.background.color, { index: -1, color: "#264653" });
+    assert.ok(body.notes.some((n) => /navigation carried over/.test(n)), JSON.stringify(body.notes));
+    ok(await h.callApp("update_sheet_object", { objectId: btn.objectId, options: { navigateTo: { action: "prevSheet" } } }));
+    assert.deepEqual(h.doc.objects.get(btn.objectId).props.navigation, { action: "prevSheet" });
   });
 
   test("a filterpane's listbox children are rebuilt from the new dimensions", async () => {

@@ -2,7 +2,7 @@
 // (viz/types/). Kept as a flat record because the gate, the tool
 // descriptions and the tests all read it by name.
 
-import { CHART_TYPES } from "./types/index.js";
+import { CHART_TYPES, CHART_TYPES_BY_NAME } from "./types/index.js";
 import type { VizSpec } from "./types/contract.js";
 
 export type { VizSpec } from "./types/contract.js";
@@ -24,5 +24,7 @@ export function checkVizShape(viz: string, nDims: number, nMeasures: number): Vi
   if (nMeasures < spec.minMeasures || nMeasures > spec.maxMeasures) {
     out.push({ severity: "fail", message: `${viz} needs ${spec.minMeasures}-${spec.maxMeasures} measures, got ${nMeasures}` });
   }
+  const rule = out.length ? undefined : CHART_TYPES_BY_NAME.get(viz)?.shapeRule?.(nDims, nMeasures);
+  if (rule) out.push({ severity: "fail", message: rule });
   return out;
 }

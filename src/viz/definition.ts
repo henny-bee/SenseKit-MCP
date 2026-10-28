@@ -4,6 +4,7 @@
 import { errMsg, ToolError, type ErrorCode } from "../core/errors.js";
 import { mapPool, ENGINE_CONCURRENCY } from "../core/pool.js";
 import { expressionWarnings, fieldNames, masterItems, EXPRESSION_ERROR } from "../qix/quality.js";
+import { sheetList } from "../qix/objects.js";
 import { VIZ_SPECS, checkVizShape } from "./specs.js";
 import {
   normalizeDims, normalizeMeasures, noEq,
@@ -40,6 +41,16 @@ export async function prepareDefinition(
   }
   const hardShape = checkVizShape(viz, dims.length, meas.length).filter((f) => f.severity === "fail");
   if (hardShape.length) throw refuse(hardShape.map((f) => f.message).join("; "), "VALIDATION_REFUSED", { visualization: viz, findings: hardShape });
+
+  // A button that goes to a sheet that isn't there saves fine and does
+  // nothing when clicked.
+  const nav = resolved.applied.navigateTo;
+  if (nav?.action === "goToSheet" && nav.sheetId) {
+    const sheets = await sheetList(app);
+    if (!sheets.some((s) => s.sheetId === nav.sheetId)) {
+      throw refuse(`navigateTo sheet "${nav.sheetId}" does not exist in this app`, "NOT_FOUND", { sheetId: nav.sheetId });
+    }
+  }
 
   const fieldDims = dims.flatMap((d) => (d.field !== undefined ? [d.field] : []));
   if (fieldDims.length) {

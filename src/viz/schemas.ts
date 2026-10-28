@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { HEX_COLOR } from "./inputs.js";
+import { NAVIGATION_ACTIONS } from "./types/contract.js";
 
 // Sheet grid cell, shared by add_sheet_object and move_sheet_object.
 export const positionSchema = z.object({
@@ -46,6 +47,9 @@ export const measureInputSchema = z.union([
       type: z.enum(["bar", "line", "marker"]).optional().describe("Default bar"),
       axis: z.enum(["primary", "secondary"]).optional().describe("Default primary"),
     }).strict().optional().describe("combochart only: bar/line/marker and primary/secondary axis"),
+    target: z.string().optional().describe("bulletchart only: target marker expression, e.g. 'Sum(Budget)'"),
+    operation: z.enum(["add", "subtract", "subtotal"]).optional().describe("waterfallchart only: add (default), subtract, or subtotal (shows the running total; its expression is not used)"),
+    subtotal: z.string().optional().describe("waterfallchart only: add a subtotal bar with this label after the measure"),
   }).strict().describe("Exactly one of expression / libraryId"),
 ]);
 
@@ -54,8 +58,14 @@ export const vizOptionsSchema = z.object({
   color: hexColorSchema.optional().describe("Color for colorMode 'single'"),
   showLegend: z.boolean().optional(),
   showDataLabels: z.boolean().optional(),
-  orientation: z.enum(["vertical", "horizontal"]).optional().describe("barchart only"),
+  orientation: z.enum(["vertical", "horizontal"]).optional().describe("barchart, bulletchart, boxplot, distributionplot"),
   stacked: z.boolean().optional().describe("barchart only"),
   sortByMeasure: z.enum(["asc", "desc"]).optional().describe("Sort by the first measure"),
   includeZeros: z.boolean().optional().describe("false hides rows whose measures are all zero, like unticking 'Include zero values'"),
+  navigateTo: z.object({
+    action: z.enum(NAVIGATION_ACTIONS).describe("goToSheet needs sheetId; openWebsite needs url; none removes the navigation"),
+    sheetId: z.string().optional().describe("goToSheet: target sheet id (list_sheets)"),
+    url: z.string().optional().describe("openWebsite: http(s):// or mailto: URL"),
+    sameWindow: z.boolean().optional().describe("openWebsite: open in the same tab (default: new tab)"),
+  }).strict().optional().describe("action-button only: where a click navigates"),
 }).strict();

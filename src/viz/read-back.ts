@@ -1,4 +1,4 @@
-import { HEX_COLOR, SORT_CRITERIA, SERIES_TYPES, type DimSpec, type DimSort, type MeasureSpec, type SeriesType } from "./inputs.js";
+import { HEX_COLOR, SORT_CRITERIA, SERIES_TYPES, type DimSpec, type DimSort, type MeasureSpec, type SeriesType, type WaterfallOperation } from "./inputs.js";
 import { numberFormatFromEngine } from "./number-format.js";
 import { ToolError } from "../core/errors.js";
 import type { GenericObjectProperties, HyperCubeDef, NxInlineDimensionDef, NxMeasure, NxSortCriteria } from "../qix/types.js";
@@ -44,6 +44,14 @@ export function cubeDimSpecs(hc: Partial<HyperCubeDef>): DimSpec[] {
   return dims;
 }
 
+/** The object's data cube: top level for most types, under boxplotDef for a
+ *  boxplot. */
+export function cubeDefOf(props: Pick<GenericObjectProperties, "qHyperCubeDef" | "boxplotDef">): Partial<HyperCubeDef> | undefined {
+  return props.qHyperCubeDef ?? props.boxplotDef?.qHyperCubeDef;
+}
+
+const OPERATION_OF: Record<string, WaterfallOperation> = { INVERSE: "subtract", SUBTOTAL: "subtotal" };
+
 /** A hypercube measure -> MeasureSpec (expression or link, label, format, color). */
 export function measureSpecFromDef(entry: Partial<NxMeasure> | undefined, where = "measure"): MeasureSpec {
   let out: MeasureSpec;
@@ -67,6 +75,13 @@ export function measureSpecFromDef(entry: Partial<NxMeasure> | undefined, where 
   if (series && typeof series === "object" && SERIES_TYPES.includes(series.type as SeriesType)) {
     out.series = { type: series.type as SeriesType, axis: series.axis === 1 ? "secondary" : "primary" };
   }
+  // bulletchart target, waterfall operation and subtotal.
+  const target = entry?.qDef?.target;
+  if (typeof target === "string" && target.trim() && target.trim() !== "=") out.target = target;
+  const op = OPERATION_OF[String(entry?.qDef?.valueType)];
+  if (op) out.operation = op;
+  const subtotal = entry?.qDef?.subtotal as { enable?: unknown; label?: unknown } | undefined;
+  if (subtotal?.enable === true) out.subtotal = typeof subtotal.label === "string" && subtotal.label.trim() ? subtotal.label : "Subtotal";
   return out;
 }
 

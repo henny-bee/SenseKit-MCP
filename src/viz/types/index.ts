@@ -10,14 +10,22 @@ import { combochart } from "./combochart.js";
 import { piechart } from "./piechart.js";
 import { scatterplot } from "./scatterplot.js";
 import { treemap } from "./treemap.js";
+import { bulletchart } from "./bulletchart.js";
+import { boxplot } from "./boxplot.js";
+import { histogram } from "./histogram.js";
+import { distributionplot } from "./distributionplot.js";
+import { waterfallchart } from "./waterfallchart.js";
+import { mekkochart } from "./mekkochart.js";
 import { table } from "./table.js";
 import { pivotTable } from "./pivot-table.js";
 import { listbox } from "./listbox.js";
 import { textImage } from "./text-image.js";
 import { filterpane } from "./filterpane.js";
+import { actionButton } from "./action-button.js";
 
 export const CHART_TYPES: readonly ChartType[] = [
-  kpi, gauge, barchart, linechart, combochart, piechart, scatterplot, treemap, table, pivotTable, listbox, textImage, filterpane,
+  kpi, gauge, barchart, linechart, combochart, piechart, scatterplot, treemap,
+  bulletchart, boxplot, histogram, distributionplot, waterfallchart, mekkochart, table, pivotTable, listbox, textImage, filterpane, actionButton,
 ];
 
 export const CHART_TYPES_BY_NAME: ReadonlyMap<string, ChartType> = new Map(CHART_TYPES.map((t) => [t.name, t]));

@@ -40,3 +40,21 @@ test("specsFromProps round-trips null suppression, pivot columns, combo series a
   const client = { qDef: { qDef: "Sum(S)", series: { type: "marker", axis: 0 }, color: { on: true, mode: "primary", paletteColor: { index: -1, color: "#00cf40", alpha: 1 } } } };
   assert.deepEqual(measureSpecFromDef(client), { expression: "Sum(S)", color: "#00cf40", series: { type: "marker", axis: "primary" } });
 });
+
+test("measureSpecFromDef and cubeDefOf: bullet targets, waterfall operations and the boxplot's nested cube", async () => {
+  const { cubeDefOf } = await import("../../dist/viz/read-back.js");
+  const bullet = buildVizProps("bulletchart", "t", [], [{ expression: "Sum(S)", target: "Sum(B)" }]);
+  assert.equal(measureSpecFromDef(bullet.qHyperCubeDef.qMeasures[0]).target, "=Sum(B)");
+  const w = buildVizProps("waterfallchart", "t", [], [
+    { expression: "Sum(S)" }, { expression: "Sum(C)", operation: "subtract", subtotal: "Margin" }, { expression: "0", operation: "subtotal" },
+  ]);
+  const back = w.qHyperCubeDef.qMeasures.map((m) => measureSpecFromDef(m));
+  assert.equal(back[0].operation, undefined);
+  assert.equal(back[1].operation, "subtract");
+  assert.equal(back[1].subtotal, "Margin");
+  assert.equal(back[2].operation, "subtotal");
+  const box = buildVizProps("boxplot", "t", ["Customer"], ["Sum(S)"]);
+  assert.equal(cubeDefOf(box), box.boxplotDef.qHyperCubeDef);
+  const bar = buildVizProps("barchart", "t", ["Region"], ["Sum(S)"]);
+  assert.equal(cubeDefOf(bar), bar.qHyperCubeDef);
+});

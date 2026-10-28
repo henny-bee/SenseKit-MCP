@@ -42,6 +42,12 @@ export interface MeasureSpec {
   color?: string;
   /** combochart only: how this measure is drawn and on which axis. */
   series?: SeriesSpec;
+  /** bulletchart only: the target marker, an expression. */
+  target?: string;
+  /** waterfallchart only: add (default), subtract, or show the running total. */
+  operation?: WaterfallOperation;
+  /** waterfallchart only: add a subtotal bar with this label after the measure. */
+  subtotal?: string;
 }
 export type MeasureInput = string | MeasureSpec;
 
@@ -49,10 +55,12 @@ export type SeriesType = "bar" | "line" | "marker";
 export type SeriesAxis = "primary" | "secondary";
 /** Omitted fields default to a bar on the primary axis. */
 export interface SeriesSpec { type?: SeriesType; axis?: SeriesAxis }
+export type WaterfallOperation = "add" | "subtract" | "subtotal";
 
 const DIM_SORTS: readonly DimSort[] = ["asc", "desc", "loadOrder"];
 export const SERIES_TYPES: readonly SeriesType[] = ["bar", "line", "marker"];
 export const SERIES_AXES: readonly SeriesAxis[] = ["primary", "secondary"];
+export const WATERFALL_OPERATIONS: readonly WaterfallOperation[] = ["add", "subtract", "subtotal"];
 
 function optionalBoolean(where: string, key: string, v: unknown): boolean | undefined {
   if (v === undefined) return undefined;
@@ -137,6 +145,18 @@ export function normalizeMeasures(inputs: ReadonlyArray<MeasureInput> = []): Mea
       if (s.type !== undefined && !SERIES_TYPES.includes(s.type)) throw new ToolError("INVALID_INPUT", `${where}: series.type must be one of ${SERIES_TYPES.join(", ")}`);
       if (s.axis !== undefined && !SERIES_AXES.includes(s.axis)) throw new ToolError("INVALID_INPUT", `${where}: series.axis must be one of ${SERIES_AXES.join(", ")}`);
       out.series = { ...(s.type !== undefined ? { type: s.type } : {}), ...(s.axis !== undefined ? { axis: s.axis } : {}) };
+    }
+    if (m.target !== undefined) {
+      if (typeof m.target !== "string" || !m.target.trim() || m.target.trim() === "=") throw new ToolError("INVALID_INPUT", `${where}: target must be an expression`);
+      out.target = m.target.trim();
+    }
+    if (m.operation !== undefined) {
+      if (!WATERFALL_OPERATIONS.includes(m.operation)) throw new ToolError("INVALID_INPUT", `${where}: operation must be one of ${WATERFALL_OPERATIONS.join(", ")}`);
+      out.operation = m.operation;
+    }
+    if (m.subtotal !== undefined) {
+      if (typeof m.subtotal !== "string" || !m.subtotal.trim()) throw new ToolError("INVALID_INPUT", `${where}: subtotal must be a label`);
+      out.subtotal = m.subtotal;
     }
     return out;
   });

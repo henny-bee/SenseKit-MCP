@@ -1,14 +1,14 @@
 import { HEX_COLOR, type DimSpec, type MeasureSpec } from "./inputs.js";
 import { ToolError } from "../core/errors.js";
 import { CHART_TYPES_BY_NAME } from "./types/index.js";
-import type { OptionKey, VizOptions } from "./types/contract.js";
+import type { NavigateTo, OptionKey, VizOptions } from "./types/contract.js";
 
 export type { VizOptions } from "./types/contract.js";
 
 // Which type honours which option is declared on the type itself
 // (ChartType.options / .measureColors). This is the order ignored options
 // are reported in.
-const OPTION_KEYS: readonly OptionKey[] = ["colorMode", "showLegend", "showDataLabels", "orientation", "stacked", "sortByMeasure", "includeZeros"];
+const OPTION_KEYS: readonly OptionKey[] = ["colorMode", "showLegend", "showDataLabels", "orientation", "stacked", "sortByMeasure", "includeZeros", "navigateTo"];
 
 const supports = (viz: string, key: OptionKey): boolean =>
   CHART_TYPES_BY_NAME.get(viz)?.options?.includes(key) ?? false;
@@ -43,6 +43,12 @@ export function resolveVizOptions(
     }
     (applied as Record<string, unknown>)[key] = requested[key];
   }
+  const modes = CHART_TYPES_BY_NAME.get(viz)?.colorModes;
+  if (modes && applied.colorMode && !modes.includes(applied.colorMode)) {
+    notes.push(`options.colorMode "${applied.colorMode}" does not apply to ${viz} (only ${modes.map((m) => `"${m}"`).join(" or ")}) — ignored`);
+    delete applied.colorMode;
+  }
+  if (applied.navigateTo) checkNavigateTo(applied.navigateTo, notes);
   if (options.color !== undefined) {
     if (applied.colorMode === "single") applied.color = options.color;
     else if (supports(viz, "colorMode")) notes.push('options.color is only used with colorMode "single" — ignored');
@@ -65,6 +71,9 @@ export function resolveVizOptions(
       notes.push(`measures[${i}]: label ignored on a master measure — the master item's own label is shown`);
     }
     if (m.series !== undefined && viz !== "combochart") notes.push(`measures[${i}]: series only applies to combochart — ignored`);
+    if (m.target !== undefined && viz !== "bulletchart") notes.push(`measures[${i}]: target only applies to bulletchart — ignored`);
+    if (m.operation !== undefined && viz !== "waterfallchart") notes.push(`measures[${i}]: operation only applies to waterfallchart — ignored`);
+    if (m.subtotal !== undefined && viz !== "waterfallchart") notes.push(`measures[${i}]: subtotal only applies to waterfallchart — ignored`);
   });
   let measureColors = false;
   if (measures.some((m) => m.color)) {
@@ -73,6 +82,21 @@ export function resolveVizOptions(
     else measureColors = true;
   }
   return { applied, notes, measureColors };
+}
+
+/** Each navigation action needs its own target; targets of other actions are
+ *  reported as ignored. Whether a goToSheet target exists is checked against
+ *  the app in pre-flight (viz/definition.ts). */
+function checkNavigateTo(nav: NavigateTo, notes: string[]): void {
+  if (nav.action === "goToSheet" && !nav.sheetId) {
+    throw new ToolError("INVALID_INPUT", 'options.navigateTo action "goToSheet" needs sheetId (from list_sheets)');
+  }
+  if (nav.action === "openWebsite" && !(nav.url && /^(https?:\/\/|mailto:)/i.test(nav.url))) {
+    throw new ToolError("INVALID_INPUT", 'options.navigateTo action "openWebsite" needs url starting with http://, https:// or mailto:');
+  }
+  if (nav.sheetId !== undefined && nav.action !== "goToSheet") notes.push(`options.navigateTo.sheetId only applies to action "goToSheet" — ignored`);
+  if (nav.url !== undefined && nav.action !== "openWebsite") notes.push(`options.navigateTo.url only applies to action "openWebsite" — ignored`);
+  if (nav.sameWindow !== undefined && nav.action !== "openWebsite") notes.push(`options.navigateTo.sameWindow only applies to action "openWebsite" — ignored`);
 }
 
 /** qNoOfLeftDims counts the LEADING dimensions as rows, so column dimensions

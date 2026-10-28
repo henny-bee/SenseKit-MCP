@@ -57,6 +57,12 @@ The server fails at startup, before it registers any tool, if certificate mode i
 | `QSEOW_TOOL_GROUPS` | `analyst,developer,admin` | Comma-separated tool groups (personas) to register. Matching ignores case and surrounding spaces. Unknown names are ignored, and an empty value means the default (all three). |
 | `QSEOW_TLS_VERIFY` | `true` | Only the exact string `false` turns off server-certificate verification. Use that only on a lab site with self-signed certificates. |
 
+### Rendering
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `QSEOW_BROWSER` | `msedge` on Windows, `chrome` elsewhere | Browser that `render_sheet` starts headless: a Playwright channel name (`msedge`, `chrome`) or a path to a browser executable. The browser must already be installed; nothing is downloaded. See [chart-building.md](chart-building.md#seeing-a-sheet-with-render_sheet). |
+
 ### Loader
 
 | Variable | Default | Meaning |

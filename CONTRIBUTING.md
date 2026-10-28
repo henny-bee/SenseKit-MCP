@@ -94,7 +94,7 @@ The live-site scripts above are not run in CI.
 
 ## Code layout and rules
 
-The source is split into layers: `clients/`, `core/`, `qix/`, `viz/` and `tools/`. [docs/architecture.md](docs/architecture.md) describes each one and the request flow. The rules that keep it testable:
+The source is split into layers: `clients/`, `core/`, `qix/`, `viz/` and `tools/`. [docs/structure.md](docs/structure.md) lists every folder and file and says where new code goes; [docs/architecture.md](docs/architecture.md) explains the request flow. The rules that keep it testable:
 
 - Imports only point downwards, with no cycles: `core/` imports nothing internal; `clients/` imports `config.ts`, `core/` and types from `qix/types.ts`; `qix/` imports `core/`; `viz/` imports `core/`, `qix/` and client types; `tools/` may import everything. `qix/` never imports `clients/`, `viz/` or `tools/`, and `viz/` never imports `tools/`. `tests/unit/architecture.test.mjs` enforces these rules (and that every relative import resolves), so a violation fails `npm test`.
 - Throw `ToolError` (from `core/errors.ts`) with the right code instead of a plain `Error`; the error boundary does the rest. Don't add per-tool try/catch for reporting.

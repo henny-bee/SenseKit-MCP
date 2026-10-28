@@ -128,6 +128,12 @@
           "default": "true"
         },
         {
+          "name": "QSEOW_BROWSER",
+          "description": "Browser that render_sheet starts headless: a channel (msedge, chrome) or a path to the browser. Defaults to msedge on Windows, chrome elsewhere.",
+          "isRequired": false,
+          "format": "string"
+        },
+        {
           "name": "QSEOW_QRS_PORT",
           "description": "Repository Service (QRS) port, certificate mode.",
           "isRequired": false,
@@ -143,7 +149,7 @@
         },
         {
           "name": "QSEOW_PROXY_PORT",
-          "description": "Proxy port for the JWT virtual proxy (jwt mode).",
+          "description": "Proxy port (jwt and windows mode).",
           "isRequired": false,
           "format": "number",
           "default": "443"

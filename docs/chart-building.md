@@ -4,7 +4,7 @@ The developer group includes a sheet and chart builder. It creates sheets and vi
 
 All tools on this page except `validate_sheet` are mutation-gated: they exist only when `QSEOW_ALLOW_MUTATIONS=true`. Exact input schemas are in [tools.md](tools.md).
 
-> **Verification status, in short.** The 12 original chart types, built from plain string inputs, were render-verified in a real browser by the upstream project on Qlik Sense May 2026. Everything this fork added to the builder (styling options, number formats, colors, sort by measure, stacked and horizontal bars, labels and sort on dimensions, calculated dimensions, master-item links in charts, null and zero rows, pivot column dimensions, combo chart series, the filterpane, the button, and the bullet chart, box plot, histogram, distribution plot, waterfall and Mekko chart) is **not yet render-verified**. See [Verification status](#verification-status) and [how to verify](#verifying-rendering-with-render_proofmjs).
+> **Verification status, in short.** The 12 original chart types, built from plain string inputs, were render-verified in a real browser by the upstream project on Qlik Sense May 2026. Of what this fork added, the filterpane, the button, all six newer chart types, combo chart series, KPI color bands, colors and master-item links have been seen in a browser with `render_sheet`; number formats, calculated dimensions, pivot column dimensions and the other styling options are **not yet render-verified**. See [Verification status](#verification-status) and [how to verify](#verifying-rendering-with-render_proofmjs).
 
 ## The tools
 
@@ -16,6 +16,7 @@ All tools on this page except `validate_sheet` are mutation-gated: they exist on
 | `move_sheet_object` | Moves or resizes an object's cell, or places an object that has no cell, then runs placement checks. |
 | `delete_sheet_object` | Deletes an object and its children (for example a filterpane's listboxes) and removes its cell. |
 | `validate_sheet` | Read-only. Runs the gate on one object (`objectId`) or on every object of a sheet plus placement checks (`sheetId`). |
+| `render_sheet` | Read-only. Opens the sheet in a headless browser and returns a screenshot plus each object's status. Windows or jwt auth only; see [Seeing a sheet with `render_sheet`](#seeing-a-sheet-with-render_sheet). |
 | `create_master_measure`, `create_master_dimension`, `delete_master_item` | Manage the app's master (library) items that charts can link to. |
 
 Useful read-only companions: `get_app_data_model` (field names), `list_sheets`, `get_sheet_objects`, `get_object_properties`, `list_master_measures`, `list_master_dimensions`.
@@ -32,18 +33,18 @@ Useful read-only companions: `get_app_data_model` (field names), `list_sheets`, 
 | `piechart` | 1 | 1 | |
 | `scatterplot` | 1 | 2–3 | |
 | `treemap` | 1–9 | 1 | Uses tree-mode cube (`qMode: "K"`). Needs a large tile. |
-| `bulletchart` | 0–1 | 1–15 | One measure with a dimension, up to 15 without. Each measure can have a `target`. Not render-verified. |
-| `boxplot` | 1–2 | 1 | `dimensions[0]` is what each point is (for example Customer), the optional `dimensions[1]` gives one box per value (for example Year). The cube is stored under `boxplotDef`. Not render-verified. |
-| `histogram` | 1 | 0 | One numeric field or calculated dimension; the client bins and counts the values (10 bins, automatic). Not render-verified. |
-| `distributionplot` | 1–2 | 1 | Like the box plot: points per `dimensions[0]`, one row per value of `dimensions[1]`. Tree-mode cube. Not render-verified. |
-| `waterfallchart` | 0 | 1–50 | Each measure is a step; see `operation` and `subtotal`. Not render-verified. |
-| `mekkochart` | 2 | 1 | Columns by `dimensions[0]`, cells by `dimensions[1]`, sized by the measure. Not render-verified. |
+| `bulletchart` | 0–1 | 1–15 | One measure with a dimension, up to 15 without. Each measure can have a `target`. With a dimension all rows share one axis, so they compare on one scale; separate measures keep their own axes. |
+| `boxplot` | 1–2 | 1 | `dimensions[0]` is what each point is (for example Customer), the optional `dimensions[1]` gives one box per value (for example Year). The cube is stored under `boxplotDef`. |
+| `histogram` | 1 | 0 | One numeric field or calculated dimension; the client bins and counts the values (10 bins, automatic). |
+| `distributionplot` | 1–2 | 1 | Like the box plot: points per `dimensions[0]`, one row per value of `dimensions[1]`. Tree-mode cube. |
+| `waterfallchart` | 0 | 1–50 | Each measure is a step; see `operation` and `subtotal`. |
+| `mekkochart` | 2 | 1 | Columns by `dimensions[0]`, cells by `dimensions[1]`, sized by the measure. Cell colors are the client's automatic per-value colors; they cannot be set yet. |
 | `table` | 0–99 | 0–99 | |
 | `pivot-table` | 1–99 | 1–99 | Uses pivot cube (`qMode: "P"`). Dimensions are rows unless marked `pivotColumn`. |
 | `listbox` | 1 | 0 | |
 | `text-image` | 0 | 0 | Shows the `title` text as its content. It takes no measures; use a `kpi` for a live value. |
-| `filterpane` | 1–20 | 0 | A container with one listbox child per dimension. Not render-verified. |
-| `action-button` | 0 | 0 | The client's **Button**. `title` is its label, `options.color` its background, `options.navigateTo` where a click goes. Auto-placed as 4 × 2. Not render-verified. |
+| `filterpane` | 1–20 | 0 | A container with one listbox child per dimension. |
+| `action-button` | 0 | 0 | The client's **Button**. `title` is its label, `options.color` its background, `options.navigateTo` where a click goes. Auto-placed as 4 × 2. |
 
 A shape outside these ranges is refused before anything is written. Any other `visualization` string is not refused, but the gate fails the object unless it matches a known Qlik built-in or an extension installed on the site.
 
@@ -106,6 +107,8 @@ An object needs **exactly one** of `expression` or `libraryId`. `color` is a hex
 
 `operation` and `subtotal` apply only to `waterfallchart`. `operation` is `add` (the default), `subtract` or `subtotal`; a `subtotal` step shows the running total so far, and its expression is not used. `subtotal` is a label: it adds a subtotal bar with that label after the measure. A typical profit bridge is `["Sum(Sales)", { "expression": "Sum(Cost)", "operation": "subtract", "subtotal": "Gross margin" }, { "expression": "Sum(Freight)", "operation": "subtract" }]`.
 
+`colorBands` applies only to `kpi` and colors the value by thresholds: `{ limits, colors }`, where `limits` are numbers in ascending order and `colors` holds one more hex color than `limits`, lowest band first. `colors[i]` is used below `limits[i]`, the last color from the top limit up. `{ "limits": [0], "colors": ["#c0392b", "#2e7d32"] }` shows a year-over-year change red below 0 and green from 0; `{ "limits": [], "colors": ["#1f3a5f"] }` is one fixed color. It works on the first and the second (comparison) measure and on master measures. The properties mirror client-authored KPIs and gauges (`qDef.conditionalColoring`); limits are numbers only, not expressions.
+
 `series` applies only to `combochart` and is `{ type?, axis? }`: `type` is `bar` (default), `line` or `marker`, and `axis` is `primary` (default) or `secondary`. Use the secondary axis for a measure on a different scale, such as a margin % next to sales amounts; on one shared axis it would draw as a flat line at the bottom. Once any measure has a `series`, every measure of the chart gets one (the defaults where you gave none), and a chart with a secondary-axis measure gets a second measure axis on the far side. On other types `series` is ignored and reported in `notes`.
 
 The combo chart stores measure colors and series the way the Qlik client does for a combo chart (`qDef.color` and `qDef.series`, mirrored from a client-authored combo chart), not the `qDef.coloring` that bar and line charts use.
@@ -132,7 +135,7 @@ The combo chart stores measure colors and series the way the Qlik client does fo
 
 | Option | Values | Applies to |
 |---|---|---|
-| `colorMode` | `auto`, `single`, `byDimension`, `byMeasure` | barchart, linechart, combochart, piechart, scatterplot, treemap. Only `auto` and `single` on bulletchart (bar color), boxplot (box color), histogram (bar color) and action-button (background). |
+| `colorMode` | `auto`, `single`, `byDimension`, `byMeasure` | barchart, linechart, combochart, piechart, scatterplot, treemap. Only `auto` and `single` on bulletchart (bar color), boxplot (boxes and outlier points), histogram (bar color), waterfallchart (the positive bars; negative stays red, subtotals gray) and action-button (background). |
 | `color` | hex color | Used with `colorMode: "single"`. Given alone, it implies `single` (and says so in `notes`). |
 | `showLegend` | boolean | barchart, linechart, combochart, piechart, scatterplot, treemap, waterfallchart |
 | `showDataLabels` | boolean | barchart, linechart, combochart, piechart, treemap, histogram, waterfallchart |
@@ -264,27 +267,50 @@ The gate inspects properties and engine results. It cannot see pixels. In partic
 
 **Render-verified upstream.** The upstream project (qseow-mcp) built one object of each of the 12 original types with plain string inputs (field names and expressions), opened each in a headless browser at sheet-tile size, and checked it on Qlik Sense May 2026: kpi, gauge, barchart, linechart, combochart, piechart, scatterplot, treemap, table, pivot-table, listbox, text-image. This fork keeps the definitions built from plain strings unchanged.
 
-**Not render-verified yet.** No live Qlik site was available while this fork was developed, so none of the following has been opened in a browser:
+**Seen in a browser by this fork.** On a live site (Qlik Sense Enterprise build 31.56.2, 2026-10), builder-made objects were opened with `render_sheet` and the screenshots checked by eye:
 
-- styling `options`: color modes and colors, legend, data labels, sort by measure, horizontal orientation and stacked bars;
-- per-measure colors;
-- number formats, on chart measures and on master measures;
-- master-item links (`libraryId`) in charts;
-- the object form of dimensions: labels, sort, calculated dimensions;
-- `includeNulls` and `includeZeros`;
-- pivot column dimensions (`pivotColumn`);
-- combo chart `series`, the second measure axis and the combo chart's per-measure colors. These mirror a client-authored combo chart harvested from a live site (2026-10), but have not been through the render proof;
 - the filterpane;
-- the action-button. Its properties follow the button supernova's own defaults, not a harvested client-authored button;
-- the bullet chart, box plot, histogram, distribution plot, waterfall chart and Mekko chart. The bullet chart mirrors one authored in the client (harvested from a live site, 2026-10) plus the measure fields the `@nebula.js/sn-bullet-chart` package documents. The others follow the default property sets in their `@nebula.js/sn-*` packages. The box plot, histogram and distribution plot derive part of their data in the client when they first render, so whether a builder-made one draws can only be checked in a browser.
+- the action-button: label and custom background color (whether a click navigates was not tested);
+- the bullet chart: custom bar color, target marker, master measure, `includeZeros: false`, `sortByMeasure`, one shared axis per dimension;
+- the histogram and the distribution plot;
+- the box plot with a single color, the waterfall chart (`subtract`, a subtotal bar, positive bars in a single color, data labels) and the Mekko chart;
+- combo chart `series` with a second measure axis, and per-measure colors on the combo chart;
+- KPI `colorBands`, on an inline and on a master comparison measure;
+- master-item links (`libraryId`) in bullet, waterfall and combo charts;
+- dimension labels and `includeNulls: false` in the object form.
 
-The engine-side gate checks all of these as far as it can. Whether they paint correctly is open until someone runs the render proof below.
+Two property errors were found and fixed this way: the bullet chart's bar color (the client reads `color.paletteColor`, not the documented `color.bar`) and the waterfall chart's custom colors (ignored while `color.auto` is true).
+
+**Not render-verified yet:**
+
+- styling `options` not used above: `byDimension` and `byMeasure` color modes, legend and data labels on bar and line charts, horizontal orientation and stacked bars;
+- number formats (`numberFormat`), on chart measures and on master measures;
+- calculated dimensions and dimension `sort`;
+- pivot column dimensions (`pivotColumn`).
+
+The engine-side gate checks these as far as it can. Whether they paint correctly is open until someone looks at them with `render_sheet` or the render proof below.
 
 **Not supported yet.** Dimension limits ("show only the top 10, the rest as Others", `qOtherTotalSpec`) cannot be set. A calculated dimension such as `=Aggr(If(Rank(Sum(Sales)) <= 10, Product), Product)` gives a top 10, and `includeNulls: false` hides the null row it leaves for the other products.
 
+## Seeing a sheet with `render_sheet`
+
+`render_sheet` is the quickest way to check a sheet after building it. It opens `/sense/app/<appId>/sheet/<sheetId>/state/analysis` in a headless browser with the server's own proxy session cookie, so it needs no extra login and opens no extra proxy session. It returns a 1600 × 900 (16:9) screenshot and a status per object:
+
+| Status | Meaning |
+|---|---|
+| `renders` | The cell shows something besides its title: a shape, an inked canvas, an image or text. |
+| `blank` | The client finished the cell (`data-render-state="1"`) but nothing is drawn. Typical for an extension that does not accept the data. |
+| `error` | The client shows an error state, such as "Incomplete visualization" or "This chart cannot be displayed" (English and German), or "Package License Expired". `message` has the text. |
+| `not-rendered` | The cell was still loading after 20 seconds. |
+| `missing` | The object has no grid cell on the sheet. |
+
+The statuses are hints; the screenshot is the evidence. `objectId` gives a close-up of one object. The view shows the session's current selections, because the browser shares the engine session with the MCP server; call `clear_selections` first for an unfiltered view.
+
+Setup: the tool is registered only in `windows` or `jwt` auth mode and when the optional dependency `playwright-core` is installed (`npm install` installs it). It downloads no browser: it starts the installed Microsoft Edge on Windows and Chrome elsewhere, or what `QSEOW_BROWSER` names (a channel such as `chrome`, or a path to the browser executable). The browser trusts the operating system's certificate store, not `QSEOW_ROOT_CERT_PATH`.
+
 ## Verifying rendering with `render_proof.mjs`
 
-`scripts/render_proof.mjs` opens each object in a real headless browser through the Qlik client and reports whether it drew. Engine checks prove that a definition resolves and computes; only a browser shows whether the nebula.js chart actually paints.
+For a site with a JWT virtual proxy, or a run outside the MCP server, `scripts/render_proof.mjs` opens each object in a real headless browser through the Qlik client and reports whether it drew. Engine checks prove that a definition resolves and computes; only a browser shows whether the nebula.js chart actually paints.
 
 ### Setup
 

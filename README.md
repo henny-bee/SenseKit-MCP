@@ -205,6 +205,7 @@ The complete reference, with every input and annotation, is [docs/tools.md](docs
 | `create_app`, `copy_app`, `publish_app`, `delete_app` | App lifecycle |
 | `create_sheet`, `add_sheet_object`, `update_sheet_object`, `move_sheet_object`, `delete_sheet_object` | Build and maintain sheets and charts |
 | `validate_sheet` | The render-validation gate on an existing sheet or object (read-only) |
+| `render_sheet` | Screenshot of a sheet in a headless browser plus each object's status (read-only; windows or jwt auth) |
 | `create_master_measure`, `create_master_dimension`, `delete_master_item` | Master-item governance |
 
 **Admin** (group `admin`): govern and operate the site.
@@ -247,17 +248,14 @@ Dimensions can be field names, calculated dimensions (`=...`) or master dimensio
 ## Verification status
 
 - **Render-verified upstream:** the 12 original chart types (kpi, gauge, barchart, linechart, combochart, piechart, scatterplot, treemap, table, pivot-table, listbox, text-image), built from plain string inputs. The upstream project opened them in a real browser at sheet-tile size on Qlik Sense May 2026. This fork keeps those definitions unchanged.
+- **Seen in a browser by this fork** (`render_sheet`, Qlik Sense build 31.56.2, 2026-10): the filterpane, the action-button, the bullet chart, box plot, histogram, distribution plot, waterfall chart and Mekko chart, combo chart series with a second axis, KPI `colorBands`, single-color and per-measure colors, master-item links in charts, and dimension labels.
 - **Not render-verified yet:**
-  - styling options (colors and color modes, legend, data labels, sort by measure, horizontal and stacked bars);
-  - per-measure colors and number formats;
-  - master-item links (`libraryId`) in charts;
-  - labels, sort and calculated dimensions in the object form;
-  - the filterpane;
-  - the action-button (navigation buttons);
-  - the bullet chart, box plot, histogram, distribution plot, waterfall chart and Mekko chart.
+  - `byDimension` and `byMeasure` color modes, legend and data labels on bar and line charts, horizontal and stacked bars;
+  - number formats (`numberFormat`);
+  - calculated dimensions and dimension sort, and pivot column dimensions.
 
-  No live site was available while these were developed. The engine-side gate checks them, but nobody has looked at them in a browser.
-- **How to verify:** build the objects on a test site, then run `scripts/render_proof.mjs` with Playwright and a JWT virtual proxy. It renders each object in a headless browser at two tile sizes, saves a screenshot per object, and exits non-zero unless everything rendered. The screenshots are the evidence; see [docs/chart-building.md](docs/chart-building.md#verifying-rendering-with-render_proofmjs).
+  The engine-side gate checks them, but nobody has looked at them in a browser yet.
+- **How to verify:** in windows or jwt auth mode, call `render_sheet` on the sheet: it returns a screenshot and a status per object (see [docs/chart-building.md](docs/chart-building.md#seeing-a-sheet-with-render_sheet)). Otherwise build the objects on a test site, then run `scripts/render_proof.mjs` with Playwright and a JWT virtual proxy. It renders each object in a headless browser at two tile sizes, saves a screenshot per object, and exits non-zero unless everything rendered. The screenshots are the evidence; see [docs/chart-building.md](docs/chart-building.md#verifying-rendering-with-render_proofmjs).
 - **Tests:** the automated tests run against in-memory fakes of the Engine and QRS, not against a live site. `npm run smoke` and the demos in [examples/](examples/) run against a real site.
 
 ## Documentation
@@ -271,6 +269,7 @@ The documents below live in the GitHub repository; the npm package contains only
 | [docs/authentication.md](docs/authentication.md) | Certificate vs. JWT vs. Windows login, the CSWSH handshake, minting a test JWT, trust model, production patterns |
 | [docs/chart-building.md](docs/chart-building.md) | Builder tools, input forms, the validation gate, verification status, the render proof |
 | [docs/errors.md](docs/errors.md) | Structured error codes and what to do about each |
+| [docs/structure.md](docs/structure.md) | Folder structure: what each folder and file is for, and where new code goes |
 | [docs/architecture.md](docs/architecture.md) | Layers, dependency rules, request flow, adding a chart type or tool |
 | [examples/](examples/README.md) | Three runnable demos against a live site: tracing a wrong number, site operations, building a sheet |
 | [CHANGELOG.md](CHANGELOG.md) | Changes, including what differs from qseow-mcp 0.5.2 |

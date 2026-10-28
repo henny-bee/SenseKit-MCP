@@ -8,25 +8,15 @@ SenseKit-MCP is a stdio [Model Context Protocol](https://modelcontextprotocol.io
 
 ## Layers
 
-```
-src/
-  index.ts      CLI entry: load config, build clients, create server, serve stdio
-  config.ts     environment variables -> typed Config
-  server.ts     createServer(deps): pure wiring, no I/O
-  clients/      the only code that talks to the network
-  core/         pure helpers, no Qlik connection needed
-  qix/          engine-side helpers and typed QIX interfaces
-  viz/          chart definitions, input normalization, the validation gate
-  tools/        MCP tool registration, one module per area
-```
-
-| Layer | Contents |
+| Layer | Role |
 |---|---|
-| `clients/` | `qrs.ts` (QRS REST, fresh `xrfkey` per request, one retry on a dropped socket), `engine.ts` (QIX session manager), `proxy-session.ts` (session bootstrap for jwt and windows mode: the windows form login, CSRF token and session cookie), `raw-https.ts` (engine health check and Proxy Service API), `qrs-types.ts` (typed QRS entities). |
-| `core/` | Redaction, paging, QRS filter quoting, status codes, security-rule decoding, lineage classification, log tails, health-check flattening, JSON walking, input schemas (GUID), tool annotations, result and error helpers, bounded concurrency (`pool.ts`) and a TTL cache (`cache.ts`). |
-| `qix/` | Typed interfaces for the subset of the Engine API the server calls (`types.ts`), object and sheet walks and master-item references (`objects.ts`), expression and field checks and the master-item index (`quality.ts`), and building selection values (`selection.ts`). |
-| `viz/` | The chart-type registry (`types/`, one file per type), shared building blocks for the per-type builders (`build.ts`), input normalization (`inputs.ts`), number formats, styling options (`options.ts`), the build dispatch (`props.ts`), shape specs derived from the registry (`specs.ts`), reading an existing object back into inputs (`read-back.ts`), grid layout and placement checks (`layout.ts`), pre-flight and creation (`definition.ts`), the validation gate (`validate.ts`) and the tool input schemas the builder shares (`schemas.ts`). |
-| `tools/` | `admin.ts`, `ops.ts` (admin group); `analyst.ts`, `inspector.ts` (analyst group); `developer.ts`, `builder.ts`, `master.ts` (developer group); `index.ts` (registration and group gating); `error-boundary.ts` (turns every thrown error into a structured tool error). |
+| `clients/` | The only code that talks to the network: QRS REST, engine WebSockets, the proxy login, and the headless browser for `render_sheet`. |
+| `core/` | Pure helpers with no Qlik connection. |
+| `qix/` | Engine-side helpers and the typed QIX interfaces. |
+| `viz/` | The chart builder: chart types, input checks, the validation gate. |
+| `tools/` | MCP tool registration, one module per area. |
+
+Every file in each layer is listed in [structure.md](structure.md).
 
 ### Dependency rules
 
@@ -91,7 +81,7 @@ The builder's central problem: the engine accepts and saves many definitions tha
 
 `validate_sheet` runs steps 4 and 5 on existing objects. The full list of checks is in [chart-building.md](chart-building.md#the-validation-gate).
 
-The gate cannot see pixels. Rendering is verified separately, in a real browser, with `scripts/render_proof.mjs` (see [chart-building.md](chart-building.md#verifying-rendering-with-render_proofmjs)).
+The gate cannot see pixels. Rendering is checked in a real browser with the `render_sheet` tool, or with `scripts/render_proof.mjs` on a JWT proxy (see [chart-building.md](chart-building.md#seeing-a-sheet-with-render_sheet)).
 
 ## Adding a chart type
 
@@ -106,6 +96,8 @@ A `ChartType` has:
 | `minTile` | Optional. Smallest auto-placed tile the type draws in (default 8 × 4). |
 | `nebula` | Optional. `true` if a nebula.js supernova draws it: it gets the shared default property blocks, and the gate checks for them. |
 | `options` | Optional. The styling options the type honours. Any other option is reported in `notes` as ignored. |
+| `colorModes` | Optional. The color modes the type accepts, if not all four. |
+| `shapeRule` | Optional. A shape check that min/max limits cannot express, such as "one measure when there is a dimension". |
 | `measureColors` | Optional. `true` if per-measure colors apply. |
 | `build(input)` | Returns the property tree. `input` has the normalized dimensions and measures, the options already filtered to this type, and the base properties. Shared helpers such as `buildCube` are in `src/viz/build.ts`. |
 
@@ -117,7 +109,7 @@ Steps:
 4. **Gate**: if the type has a failure mode the generic checks don't cover, add a check to `src/viz/validate.ts`.
 5. **Tests** (see [CONTRIBUTING.md](../CONTRIBUTING.md#adding-a-chart-type)): unit cases for its shape limits and properties, and a row in the builder tool test that every type passes its own gate.
 6. **Regenerate the tool reference** (`npm run docs:tools`), because the `add_sheet_object` description lists the supported types.
-7. **Verify rendering** with `scripts/render_proof.mjs` on a live site and look at the screenshots. Only then remove `renderVerified: false`, and update [chart-building.md](chart-building.md#verification-status).
+7. **Verify rendering**: build one on a live site, open it with `render_sheet` (or `scripts/render_proof.mjs`) and look at the screenshot. Only then remove `renderVerified: false`, and update [chart-building.md](chart-building.md#verification-status).
 
 ## Adding a tool
 

@@ -2,7 +2,7 @@
 
 All notable changes to SenseKit-MCP are recorded here.
 
-## 1.0.0 — Unreleased
+## 1.0.0 — 2026-10-29
 
 First release of **SenseKit-MCP**, a substantially modified fork of [qseow-mcp](https://github.com/rmterenzi/qseow-mcp) 0.5.2 by Terenzi LLC (Apache-2.0). See [NOTICE](NOTICE). The entries below describe what changed compared with qseow-mcp 0.5.2.
 
@@ -11,6 +11,7 @@ First release of **SenseKit-MCP**, a substantially modified fork of [qseow-mcp](
 - The npm package, the `bin` command, the MCP server name, the MCP Registry name (`io.github.henny-bee/sensekit-mcp`) and the Claude Desktop bundle (`sensekit-mcp-<version>.mcpb`) are now `sensekit-mcp`, and the project is called **SenseKit-MCP**. The identifiers are lowercase because npm package names cannot contain capital letters.
 - **Unchanged on purpose:** all `QSEOW_*` environment variables and all tool names. Existing client configurations only need the new package or command name.
 - `server.json` now lists every environment variable the server reads, including the ports, `QSEOW_CERT_PASSPHRASE`, the certificate identity, `QSEOW_JWT_PATH` and `QSEOW_ENV_PATH`.
+- `npm run bundle` now also works on Windows, where `npm` and `npx` are `.cmd` files that Node starts only through a shell. The bundle carries the regular dependencies only, so `render_sheet` (which needs the optional `playwright-core`) is not in it.
 
 ### Windows login (no certificates)
 

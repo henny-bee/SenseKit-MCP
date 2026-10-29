@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Bundle carries prod node_modules: Claude Desktop has Node but never runs npm install.
-import { execFileSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import { mkdirSync, rmSync, cpSync, writeFileSync, readFileSync, existsSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -9,7 +9,10 @@ const here = dirname(fileURLToPath(import.meta.url));
 const root = join(here, "..");
 const pkg = JSON.parse(readFileSync(join(root, "package.json"), "utf8"));
 const stage = join(here, "build");
-const run = (cmd, args, cwd) => execFileSync(cmd, args, { cwd, stdio: "inherit" });
+// Windows: npm and npx are .cmd files, which Node only starts through a shell; quote args for paths with spaces.
+const run = (cmd, args, cwd) => process.platform === "win32"
+  ? execSync([cmd, ...args.map((a) => `"${a}"`)].join(" "), { cwd, stdio: "inherit" })
+  : execFileSync(cmd, args, { cwd, stdio: "inherit" });
 
 run("npm", ["run", "build"], root);
 

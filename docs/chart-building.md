@@ -306,7 +306,7 @@ The engine-side gate checks these as far as it can. Whether they paint correctly
 
 The statuses are hints; the screenshot is the evidence. `objectId` gives a close-up of one object. The view shows the session's current selections, because the browser shares the engine session with the MCP server; call `clear_selections` first for an unfiltered view.
 
-Setup: the tool is registered only in `windows` or `jwt` auth mode and when the optional dependency `playwright-core` is installed (`npm install` installs it). It downloads no browser: it starts the installed Microsoft Edge on Windows and Chrome elsewhere, or what `QSEOW_BROWSER` names (a channel such as `chrome`, or a path to the browser executable). The browser trusts the operating system's certificate store, not `QSEOW_ROOT_CERT_PATH`.
+Setup: the tool is registered only in `windows` or `jwt` auth mode and when the optional dependency `playwright-core` is installed (`npm install` installs it, and the Claude Desktop bundle includes it). It downloads no browser: it starts the installed Microsoft Edge on Windows and Chrome elsewhere, or what `QSEOW_BROWSER` names (a channel such as `chrome`, or a path to the browser executable). The browser trusts the operating system's certificate store, not `QSEOW_ROOT_CERT_PATH`.
 
 ## Verifying rendering with `render_proof.mjs`
 

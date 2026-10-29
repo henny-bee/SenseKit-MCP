@@ -23,7 +23,8 @@ cpSync(join(root, "dist"), join(stage, "server"), { recursive: true });
 
 writeFileSync(join(stage, "package.json"), JSON.stringify({
   name: pkg.name, version: pkg.version, private: true, type: "module",
-  dependencies: pkg.dependencies,
+  // Optional ones too: playwright-core gives Claude Desktop users render_sheet (it uses the installed browser).
+  dependencies: { ...pkg.dependencies, ...pkg.optionalDependencies },
 }, null, 2));
 run("npm", ["install", "--omit=dev", "--ignore-scripts", "--no-audit", "--no-fund"], stage);
 

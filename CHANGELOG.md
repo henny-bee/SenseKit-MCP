@@ -2,6 +2,10 @@
 
 All notable changes to SenseKit-MCP are recorded here.
 
+## 1.0.1 — 2026-10-29
+
+- The Claude Desktop bundle (`.mcpb`) now includes `playwright-core`, so `render_sheet` is available there too, in windows and jwt mode. It still downloads no browser: it uses the installed Edge, or Chrome outside Windows. The bundle grows from 3.4 MB to 6.2 MB.
+
 ## 1.0.0 — 2026-10-29
 
 First release of **SenseKit-MCP**, a substantially modified fork of [qseow-mcp](https://github.com/rmterenzi/qseow-mcp) 0.5.2 by Terenzi LLC (Apache-2.0). See [NOTICE](NOTICE). The entries below describe what changed compared with qseow-mcp 0.5.2.

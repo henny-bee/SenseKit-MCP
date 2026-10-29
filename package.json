@@ -1,6 +1,6 @@
 {
   "name": "sensekit-mcp",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "mcpName": "io.github.henny-bee/sensekit-mcp",
   "description": "MCP server for Qlik Sense Enterprise on Windows (client-managed): Repository, Engine/QIX and Proxy APIs as Model Context Protocol tools for analysts, developers and admins, with a validated sheet and chart builder.",
   "license": "Apache-2.0",
